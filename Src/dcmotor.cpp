@@ -88,14 +88,19 @@ DcMotor::init() {
 
         TIM_ClockConfigTypeDef sClockSourceConfig;
         TIM_MasterConfigTypeDef sMasterConfig;
+        TIM_OC_InitTypeDef      sConfigOC;
         memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
         memset(&sMasterConfig, 0, sizeof(sMasterConfig));
+        memset(&sConfigOC,          0, sizeof(sConfigOC));
+
+        // Compute the prescaler value to have TIM3 counter clock equal to 4096000Hz
+        uint32_t uhPrescalerValue = (uint32_t)(SystemCoreClock / 4096000) - 1;
 
         htimPWM.Instance = pwmTimer;
-        htimPWM.Init.Prescaler         = 240;
+        htimPWM.Init.Prescaler         = uhPrescalerValue;
         htimPWM.Init.CounterMode       = TIM_COUNTERMODE_UP;
-        htimPWM.Init.Period            = 1000;
-        htimPWM.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV4;
+        htimPWM.Init.Period            = 255;
+        htimPWM.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
         htimPWM.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
         if(HAL_TIM_Base_Init(&htimPWM) != HAL_OK) {
             Error_Handler();
@@ -105,13 +110,28 @@ DcMotor::init() {
         if(HAL_TIM_ConfigClockSource(&htimPWM, &sClockSourceConfig) != HAL_OK) {
             Error_Handler();
         }
-
+        if (HAL_TIM_PWM_Init(&htimPWM) != HAL_OK) {
+            Error_Handler();
+        }
         sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
         sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
         if(HAL_TIMEx_MasterConfigSynchronization(&htimPWM, &sMasterConfig) != HAL_OK) {
             Error_Handler();
         }
-
+        sConfigOC.OCMode     = TIM_OCMODE_PWM1;
+        sConfigOC.Pulse      = 0;
+        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+        if(pwmPin == GPIO_PIN_6) {
+            if (HAL_TIM_PWM_ConfigChannel(&htimPWM, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
+                Error_Handler();
+            }
+        }
+        else if(pwmPin == GPIO_PIN_6) {
+            if (HAL_TIM_PWM_ConfigChannel(&htimPWM, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
+                Error_Handler();
+            }
+        }
         HAL_TIM_PWM_Start(&htimPWM, TIM_CHANNEL_ALL);
     }
     else {
