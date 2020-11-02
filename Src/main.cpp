@@ -22,6 +22,7 @@ I2C_HandleTypeDef hi2c1;
 
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
+
 DcMotor leftMotor(GPIOC, GPIO_PIN_8,
                   GPIOC, GPIO_PIN_9,
                   GPIOA, GPIO_PIN_6, TIM3);
@@ -31,8 +32,9 @@ DcMotor leftMotor(GPIOC, GPIO_PIN_8,
 //                   GPIOA, GPIO_PIN_7, TIM3);
 
 
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim2;        // Samplig Timer
+uint32_t samplingFrequency = 4; // Sampling Frequency [Hz]
+
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
@@ -50,7 +52,6 @@ static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 
 static void MX_TIM2_Init(void);
-static void MX_TIM3_Init(void);
 
 static void MX_USART2_UART_Init(void);
 
@@ -136,7 +137,6 @@ main(void) {
     //rightMotor.init();
 
     MX_TIM2_Init();
-    MX_TIM3_Init();
 
     MX_USART2_UART_Init();
 
@@ -149,21 +149,24 @@ main(void) {
     leftEncoder.start();
     rightEncoder.start();
 
-    HAL_TIM_PWM_Start(&htim3,     TIM_CHANNEL_1);  // PWMs
-    HAL_TIM_PWM_Start(&htim3,     TIM_CHANNEL_2);  // PWMs
+    //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);  // PWMs
 
     HAL_TIM_Base_Start_IT(&htim2);
 
+    int testVal;
+    testVal = 0;
+
     // Main Loop
     while(true) {
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-        HAL_Delay(1000);
-        sprintf((char *)sMessage, "Counts1: %4d - Counts2: %4d\n",
-                leftEncoder.read(), rightEncoder.read());
-        if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
-            HAL_TIM_Base_Stop_IT(&htim2);
-            Error_Handler();
-        }
+//        sprintf((char *)sMessage, "Counts1: %4d - Counts2: %4d\n",
+//                leftEncoder.read(), rightEncoder.read());
+//        if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
+//            HAL_TIM_Base_Stop_IT(&htim2);
+//            Error_Handler();
+//        }
+        testVal++;
+        testVal = testVal % 255;
+        leftMotor.goForward(double(testVal));
     }
 }
 
@@ -193,12 +196,21 @@ MX_TIM2_Init(void) {
     memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
     memset(&sMasterConfig, 0, sizeof(sMasterConfig));
 
-    htim2.Instance               = TIM2;
-    htim2.Init.Prescaler         = 0;
+    __HAL_RCC_TIM2_CLK_ENABLE();
+
+    // Time base configuration (based on 100 MHz CPU frequency)
+    const uint32_t counterClock = SystemCoreClock/100;// 1MHz;
+    // Prescaler value to have a 1MHz TIM2 Input Counter Clock
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/counterClock)-1;
+
+    htim2.Instance = TIM2;
+    htim2.Init.Prescaler         = uwPrescalerValue;
     htim2.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    htim2.Init.Period            = 0;
-    htim2.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    htim2.Init.Period            = (counterClock/samplingFrequency)-1; // (Sampling period) / (Clock Period)
+    htim2.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // tDTS=tCK_INT
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+
+
     if(HAL_TIM_Base_Init(&htim2) != HAL_OK) {
         HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
@@ -216,39 +228,9 @@ MX_TIM2_Init(void) {
         HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
-}
 
-
-static void
-MX_TIM3_Init(void) {
-    TIM_ClockConfigTypeDef sClockSourceConfig;
-    TIM_MasterConfigTypeDef sMasterConfig;
-    memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
-    memset(&sMasterConfig, 0, sizeof(sMasterConfig));
-
-    htim3.Instance = TIM3;
-    htim3.Init.Prescaler         = 0;
-    htim3.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    htim3.Init.Period            = 0;
-    htim3.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if(HAL_TIM_Base_Init(&htim3) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
-        Error_Handler();
-    }
-
-    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    if(HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
-        Error_Handler();
-    }
-
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
-        Error_Handler();
-    }
+    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);
 }
 
 

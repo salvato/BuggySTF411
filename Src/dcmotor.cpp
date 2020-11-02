@@ -92,10 +92,10 @@ DcMotor::init() {
         memset(&sMasterConfig, 0, sizeof(sMasterConfig));
 
         htimPWM.Instance = pwmTimer;
-        htimPWM.Init.Prescaler         = 0;
+        htimPWM.Init.Prescaler         = 240;
         htimPWM.Init.CounterMode       = TIM_COUNTERMODE_UP;
-        htimPWM.Init.Period            = 0;
-        htimPWM.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+        htimPWM.Init.Period            = 1000;
+        htimPWM.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV4;
         htimPWM.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
         if(HAL_TIM_Base_Init(&htimPWM) != HAL_OK) {
             Error_Handler();
@@ -121,8 +121,14 @@ DcMotor::init() {
 }
 
 
-void DcMotor::stop() {
-
+void
+DcMotor::stop() {
+    HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
+    if(pwmPin == GPIO_PIN_6)
+        pwmTimer->CCR1 = 0;
+    else
+        pwmTimer->CCR2 = 0;
 }
 
 
@@ -130,11 +136,21 @@ void
 DcMotor::goForward(double speed) {
     HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
+    if(pwmPin == GPIO_PIN_6)
+        pwmTimer->CCR1 = speed;
+    else
+        pwmTimer->CCR2 = speed;
 }
 
 
-void DcMotor::goBackward(double speed) {
-
+void
+DcMotor::goBackward(double speed) {
+    HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_SET);
+    if(pwmPin == GPIO_PIN_6)
+        pwmTimer->CCR1 = speed;
+    else
+        pwmTimer->CCR2 = speed;
 }
 
 
