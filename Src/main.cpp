@@ -11,6 +11,8 @@
 #include "string.h" // for memset()
 #include "stdio.h"
 #include "encoder.h"
+#include "dcmotor.h"
+
 
 //==================
 // Private variables
@@ -19,6 +21,9 @@ I2C_HandleTypeDef hi2c1;
 
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
+DcMotor leftMotor(GPIOC, GPIO_PIN_8,
+                  GPIOC,  GPIO_PIN_9);
+
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
@@ -95,6 +100,20 @@ static void MX_USART2_UART_Init(void);
 // PA7 (CN10 15)    ------> TIM3_CH2
 
 
+//====================================
+// Left Motor Direction Pins
+// PC8  (CN10  2)    ------> LM298 IN1
+// PC9  (CN10  1)    ------> LM298 IN2
+//====================================
+
+
+//====================================
+// Right Motor Direction Pins
+// P?xx (CN??  ?)    ------> LM298 IN3
+// P?xx (CN??  ?)    ------> LM298 IN4
+//====================================
+
+
 int
 main(void) {
     HAL_Init();
@@ -106,6 +125,9 @@ main(void) {
 
     leftEncoder.init();
     rightEncoder.init();
+
+    leftMotor.init();
+    //rightMotor.init();
 
     MX_TIM2_Init();
     MX_TIM3_Init();
