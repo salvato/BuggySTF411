@@ -64,6 +64,7 @@ CXX_SOURCES =  \
 Src/main.cpp \
 Src/encoder.cpp \
 Src/dcmotor.cpp \
+Src/utility.cpp \
 
 
 # ASM sources

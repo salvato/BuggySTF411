@@ -8,6 +8,7 @@
 // Motor Gear 9:1
 
 #include "main.h"
+#include "utility.h"
 #include "string.h" // for memset()
 #include "stdio.h"
 #include "encoder.h"
@@ -22,7 +23,12 @@ I2C_HandleTypeDef hi2c1;
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
 DcMotor leftMotor(GPIOC, GPIO_PIN_8,
-                  GPIOC,  GPIO_PIN_9);
+                  GPIOC, GPIO_PIN_9,
+                  GPIOA, GPIO_PIN_6, TIM3);
+
+//DcMotor rightMotor(GPIOC, GPIO_PIN_?,
+//                   GPIOC, GPIO_PIN_?,
+//                   GPIOA, GPIO_PIN_7, TIM3);
 
 
 TIM_HandleTypeDef htim2;
@@ -136,6 +142,7 @@ main(void) {
 
     sprintf((char *)sMessage, "\n\n\nBuggySTF411 - Program Started\n");
     if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 
@@ -154,6 +161,7 @@ main(void) {
         sprintf((char *)sMessage, "Counts1: %4d - Counts2: %4d\n",
                 leftEncoder.read(), rightEncoder.read());
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
+            HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();
         }
     }
@@ -172,6 +180,7 @@ MX_I2C1_Init(void) {
     hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
     hi2c1.Init.NoStretchMode   = I2C_NOSTRETCH_DISABLE;
     if(HAL_I2C_Init(&hi2c1) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 }
@@ -191,17 +200,20 @@ MX_TIM2_Init(void) {
     htim2.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if(HAL_TIM_Base_Init(&htim2) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
     if(HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
     if(HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 }
@@ -221,17 +233,20 @@ MX_TIM3_Init(void) {
     htim3.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if(HAL_TIM_Base_Init(&htim3) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
     if(HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
     if(HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 }
@@ -248,6 +263,7 @@ MX_USART2_UART_Init(void) {
     huart2.Init.HwFlowCtl    = UART_HWCONTROL_NONE;
     huart2.Init.OverSampling = UART_OVERSAMPLING_16;
     if(HAL_UART_Init(&huart2) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 }
@@ -308,6 +324,7 @@ SystemClock_Config(void) {
     RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV4;
     RCC_OscInitStruct.PLL.PLLQ            = 4;
     if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
     }
 
@@ -321,17 +338,8 @@ SystemClock_Config(void) {
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
     if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&htim2);
         Error_Handler();
-    }
-}
-
-
-void
-Error_Handler(void) {
-    HAL_TIM_Base_Stop_IT(&htim2);
-    while(true) {
-        HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-        HAL_Delay(50);
     }
 }
 

@@ -1,5 +1,6 @@
 #include "dcmotor.h"
 #include "string.h" // for memset()
+#include "utility.h"
 
 
 // Caratteristiche Motore:
@@ -23,9 +24,13 @@
 // (L)     electric inductance                ?.?  H
 
 DcMotor::DcMotor(GPIO_TypeDef* _forwardPort, uint16_t _forwardPin,
-                 GPIO_TypeDef* _reversePort,  uint16_t _reversePin)
-    : forwardPort(_forwardPort)
+                 GPIO_TypeDef* _reversePort,  uint16_t _reversePin,
+                 GPIO_TypeDef* _pwmPort,  uint16_t _pwmPin, TIM_TypeDef* _pwmTimer)
+    : pwmTimer(_pwmTimer)
+    , forwardPort(_forwardPort)
     , reversePort(_reversePort)
+    , pwmPort(_pwmPort)
+    , pwmPin(_pwmPin)
     , forwardPin(_forwardPin)
     , reversePin(_reversePin)
 {
@@ -67,6 +72,52 @@ DcMotor::init() {
 
     GPIO_InitStruct.Pin   = reversePin;
     HAL_GPIO_Init(reversePort, &GPIO_InitStruct);
+
+    if(pwmTimer == TIM3) {
+        __HAL_RCC_TIM3_CLK_ENABLE();
+        __HAL_RCC_GPIOA_CLK_ENABLE();
+        // TIM3 GPIO Configuration
+        // PA6     ------> TIM3_CH1
+        // PA7     ------> TIM3_CH2
+        GPIO_InitStruct.Pin       = pwmPin;
+        GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+        GPIO_InitStruct.Pull      = GPIO_NOPULL;
+        GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
+        GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
+        HAL_GPIO_Init(pwmPort, &GPIO_InitStruct);
+
+        TIM_ClockConfigTypeDef sClockSourceConfig;
+        TIM_MasterConfigTypeDef sMasterConfig;
+        memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
+        memset(&sMasterConfig, 0, sizeof(sMasterConfig));
+
+        htimPWM.Instance = pwmTimer;
+        htimPWM.Init.Prescaler         = 0;
+        htimPWM.Init.CounterMode       = TIM_COUNTERMODE_UP;
+        htimPWM.Init.Period            = 0;
+        htimPWM.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+        htimPWM.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+        if(HAL_TIM_Base_Init(&htimPWM) != HAL_OK) {
+            Error_Handler();
+        }
+
+        sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+        if(HAL_TIM_ConfigClockSource(&htimPWM, &sClockSourceConfig) != HAL_OK) {
+            Error_Handler();
+        }
+
+        sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+        sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
+        if(HAL_TIMEx_MasterConfigSynchronization(&htimPWM, &sMasterConfig) != HAL_OK) {
+            Error_Handler();
+        }
+
+        HAL_TIM_PWM_Start(&htimPWM, TIM_CHANNEL_ALL);
+    }
+    else {
+        Error_Handler();
+    }
+
 }
 
 
@@ -77,7 +128,8 @@ void DcMotor::stop() {
 
 void
 DcMotor::goForward(double speed) {
-
+    HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
 }
 
 

@@ -999,6 +999,7 @@ Inc/encoder.h
 Inc/main.h
 Inc/stm32f4xx_hal_conf.h
 Inc/stm32f4xx_it.h
+Inc/utility.h
 Makefile
 STM32F411RETx_FLASH.ld
 Src/dcmotor.cpp
@@ -1008,6 +1009,7 @@ Src/encoder.cpp
 Src/stm32f4xx_hal_msp.c
 Src/stm32f4xx_it.c
 Src/system_stm32f4xx.c
+Src/utility.cpp
 docs/DB2196.pdf
 docs/NUCLEO-F411RE_User_manual.pdf
 docs/stm32f411re.pdf
