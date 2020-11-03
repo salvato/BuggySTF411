@@ -144,24 +144,18 @@ DcMotor::stop() {
 
 
 void
-DcMotor::goForward(unsigned speed) {
-    HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
+DcMotor::setSpeed(int speed) {
+    if(speed >= 0) {
+        HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_SET);
+        HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
+    }
+    else if(speed < 0) {
+        HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_SET);
+        speed = -speed;
+    }
     if(pwmPin == GPIO_PIN_6)
         pwmTimer->CCR1 = speed;
     else
         pwmTimer->CCR2 = speed;
 }
-
-
-void
-DcMotor::goBackward(unsigned speed) {
-    HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_SET);
-    if(pwmPin == GPIO_PIN_6)
-        pwmTimer->CCR1 = speed;
-    else
-        pwmTimer->CCR2 = speed;
-}
-
-

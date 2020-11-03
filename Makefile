@@ -65,6 +65,8 @@ Src/main.cpp \
 Src/encoder.cpp \
 Src/dcmotor.cpp \
 Src/utility.cpp \
+Src/PID_v1.cpp \
+Src/motorController.cpp \
 
 
 # ASM sources

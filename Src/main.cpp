@@ -27,9 +27,9 @@ DcMotor leftMotor(GPIOC, GPIO_PIN_8,
                   GPIOC, GPIO_PIN_9,
                   GPIOA, GPIO_PIN_6, TIM3);
 
-//DcMotor rightMotor(GPIOC, GPIO_PIN_?,
-//                   GPIOC, GPIO_PIN_?,
-//                   GPIOA, GPIO_PIN_7, TIM3);
+DcMotor rightMotor(GPIOC, GPIO_PIN_10,
+                   GPIOC, GPIO_PIN_11,
+                   GPIOA, GPIO_PIN_7, TIM3);
 
 
 TIM_HandleTypeDef htim2;        // Samplig Timer
@@ -116,8 +116,8 @@ static void MX_USART2_UART_Init(void);
 
 //====================================
 // Right Motor Direction Pins
-// P?xx (CN??  ?)    ------> LM298 IN3
-// P?xx (CN??  ?)    ------> LM298 IN4
+// PC10 (CN7  1)    ------> LM298 IN3
+// PC11 (CN7  2)    ------> LM298 IN4
 //====================================
 
 
@@ -134,7 +134,7 @@ main(void) {
     rightEncoder.init();
 
     leftMotor.init();
-    //rightMotor.init();
+    rightMotor.init();
 
     // Initialize the Periodic Samplig Timer
     MX_TIM2_Init();
@@ -156,8 +156,8 @@ main(void) {
     unsigned testVal = 0;
     while(true) {
         testVal++;
-        testVal = testVal % 256;
-        leftMotor.goForward(testVal);
+        testVal = testVal % 512;
+        leftMotor.setSpeed(testVal-256);
         sprintf((char *)sMessage, "Speed: %3d\n", testVal);
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
