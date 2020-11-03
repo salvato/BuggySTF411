@@ -136,6 +136,7 @@ main(void) {
     leftMotor.init();
     //rightMotor.init();
 
+    // Initialize the Periodic Samplig Timer
     MX_TIM2_Init();
 
     MX_USART2_UART_Init();
@@ -149,14 +150,10 @@ main(void) {
     leftEncoder.start();
     rightEncoder.start();
 
-    //HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);  // PWMs
-
     HAL_TIM_Base_Start_IT(&htim2);
 
-    unsigned testVal;
-    testVal = 0;
-
     // Main Loop
+    unsigned testVal = 0;
     while(true) {
         testVal++;
         testVal = testVal % 256;
