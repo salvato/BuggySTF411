@@ -39,8 +39,52 @@ DcMotor::DcMotor(GPIO_TypeDef* _forwardPort, uint16_t _forwardPin,
 
 void
 DcMotor::init() {
-    GPIO_InitTypeDef GPIO_InitStruct;
-    memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
+    if(pwmTimer != TIM3) {
+        Error_Handler();
+    }
+    __HAL_RCC_TIM3_CLK_ENABLE();
+
+    // Compute the prescaler value to have TIM3 counter clock equal to 4096000Hz
+    uint32_t uhPrescalerValue = (uint32_t)(SystemCoreClock / 128000) - 1;
+
+    TIM_MasterConfigTypeDef sMasterConfig;
+    TIM_OC_InitTypeDef      sConfigOC;
+    memset(&sMasterConfig, 0, sizeof(sMasterConfig));
+    memset(&sConfigOC,          0, sizeof(sConfigOC));
+
+    htimPWM.Instance = pwmTimer;
+    htimPWM.Init.Prescaler         = uhPrescalerValue;
+    htimPWM.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    htimPWM.Init.Period            = 254;
+    htimPWM.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    htimPWM.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if(HAL_TIM_PWM_Init(&htimPWM) != HAL_OK) {
+        Error_Handler();
+    }
+
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
+    if(HAL_TIMEx_MasterConfigSynchronization(&htimPWM, &sMasterConfig) != HAL_OK) {
+        Error_Handler();
+    }
+
+    sConfigOC.OCMode     = TIM_OCMODE_PWM1;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    sConfigOC.Pulse      = 0;
+
+    if(pwmPin == GPIO_PIN_6) {
+        if (HAL_TIM_PWM_ConfigChannel(&htimPWM, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
+            Error_Handler();
+        }
+        HAL_TIM_PWM_Start(&htimPWM, TIM_CHANNEL_1);
+    }
+    else if(pwmPin == GPIO_PIN_7) {
+        if (HAL_TIM_PWM_ConfigChannel(&htimPWM, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
+            Error_Handler();
+        }
+        HAL_TIM_PWM_Start(&htimPWM, TIM_CHANNEL_2);
+    }
 
     if(reversePort == GPIOA)
         __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -64,19 +108,8 @@ DcMotor::init() {
     else if(forwardPort == GPIOH)
         __HAL_RCC_GPIOH_CLK_ENABLE();
 
-    GPIO_InitStruct.Pin   = forwardPin;
-    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull  = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(forwardPort, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin   = reversePin;
-    HAL_GPIO_Init(reversePort, &GPIO_InitStruct);
-
-    if(pwmTimer != TIM3) {
-        Error_Handler();
-    }
-    __HAL_RCC_TIM3_CLK_ENABLE();
+    GPIO_InitTypeDef GPIO_InitStruct;
+    memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
     // TIM3 GPIO Configuration
     // PA6     ------> TIM3_CH1
@@ -88,53 +121,14 @@ DcMotor::init() {
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM3;
     HAL_GPIO_Init(pwmPort, &GPIO_InitStruct);
 
-    TIM_ClockConfigTypeDef sClockSourceConfig;
-    TIM_MasterConfigTypeDef sMasterConfig;
-    TIM_OC_InitTypeDef      sConfigOC;
-    memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
-    memset(&sMasterConfig, 0, sizeof(sMasterConfig));
-    memset(&sConfigOC,          0, sizeof(sConfigOC));
+    GPIO_InitStruct.Pin   = forwardPin;
+    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(forwardPort, &GPIO_InitStruct);
 
-    // Compute the prescaler value to have TIM3 counter clock equal to 4096000Hz
-    uint32_t uhPrescalerValue = (uint32_t)(SystemCoreClock / 4096000) - 1;
-
-    htimPWM.Instance = pwmTimer;
-    htimPWM.Init.Prescaler         = uhPrescalerValue;
-    htimPWM.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    htimPWM.Init.Period            = 255;
-    htimPWM.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-    htimPWM.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if(HAL_TIM_Base_Init(&htimPWM) != HAL_OK) {
-        Error_Handler();
-    }
-
-    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    if(HAL_TIM_ConfigClockSource(&htimPWM, &sClockSourceConfig) != HAL_OK) {
-        Error_Handler();
-    }
-    if (HAL_TIM_PWM_Init(&htimPWM) != HAL_OK) {
-        Error_Handler();
-    }
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&htimPWM, &sMasterConfig) != HAL_OK) {
-        Error_Handler();
-    }
-    sConfigOC.OCMode     = TIM_OCMODE_PWM1;
-    sConfigOC.Pulse      = 0;
-    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-    if(pwmPin == GPIO_PIN_6) {
-        if (HAL_TIM_PWM_ConfigChannel(&htimPWM, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
-            Error_Handler();
-        }
-    }
-    else if(pwmPin == GPIO_PIN_6) {
-        if (HAL_TIM_PWM_ConfigChannel(&htimPWM, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
-            Error_Handler();
-        }
-    }
-    HAL_TIM_PWM_Start(&htimPWM, TIM_CHANNEL_ALL);
+    GPIO_InitStruct.Pin   = reversePin;
+    HAL_GPIO_Init(reversePort, &GPIO_InitStruct);
 }
 
 
@@ -150,7 +144,7 @@ DcMotor::stop() {
 
 
 void
-DcMotor::goForward(double speed) {
+DcMotor::goForward(unsigned speed) {
     HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
     if(pwmPin == GPIO_PIN_6)
@@ -161,7 +155,7 @@ DcMotor::goForward(double speed) {
 
 
 void
-DcMotor::goBackward(double speed) {
+DcMotor::goBackward(unsigned speed) {
     HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_SET);
     if(pwmPin == GPIO_PIN_6)

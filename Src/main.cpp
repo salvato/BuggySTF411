@@ -153,20 +153,19 @@ main(void) {
 
     HAL_TIM_Base_Start_IT(&htim2);
 
-    int testVal;
+    unsigned testVal;
     testVal = 0;
 
     // Main Loop
     while(true) {
-//        sprintf((char *)sMessage, "Counts1: %4d - Counts2: %4d\n",
-//                leftEncoder.read(), rightEncoder.read());
-//        if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
-//            HAL_TIM_Base_Stop_IT(&htim2);
-//            Error_Handler();
-//        }
         testVal++;
-        testVal = testVal % 255;
-        leftMotor.goForward(double(testVal));
+        testVal = testVal % 256;
+        leftMotor.goForward(testVal);
+        sprintf((char *)sMessage, "Speed: %3d\n", testVal);
+        if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
+            HAL_TIM_Base_Stop_IT(&htim2);
+            Error_Handler();
+        }
     }
 }
 

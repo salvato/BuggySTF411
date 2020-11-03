@@ -11,8 +11,8 @@ public:
                      GPIO_TypeDef* _pwmPort,  uint16_t _pwmPin, TIM_TypeDef* _pwmTimer);
     void init();
     void stop();
-    void goForward(double  speed=0.0);
-    void goBackward(double speed=0.0);
+    void goForward(unsigned speed=0.0);
+    void goBackward(unsigned speed=0.0);
 
 private:
     TIM_TypeDef*  pwmTimer;
