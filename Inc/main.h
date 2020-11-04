@@ -53,6 +53,7 @@ extern "C" {
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 void TIM2_IRQHandler(void);
+void EXTI15_10_IRQHandler(void);
 
 /* USER CODE BEGIN EFP */
 

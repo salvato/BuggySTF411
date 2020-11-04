@@ -164,12 +164,16 @@ main(void) {
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  samplingFrequency);
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, samplingFrequency);
 
-    pLeftControlledMotor->setTargetSpeed(2.0);
+    double targetSpeed = 2.0;
+    pLeftControlledMotor->setTargetSpeed(targetSpeed);
 
     HAL_TIM_Base_Start_IT(&htim2);
 
     bRun = false;
 
+    // Enable and set Button EXTI Interrupt to the lowest priority
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+    bool oldStatus = bRun;
     // Main Loop
     while(true) {
         HAL_Delay(300);
@@ -177,6 +181,11 @@ main(void) {
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();
+        }
+        if(bRun != oldStatus) {
+            oldStatus = bRun;
+            targetSpeed = -targetSpeed;
+            pLeftControlledMotor->setTargetSpeed(targetSpeed);
         }
     }
 }
@@ -288,6 +297,7 @@ MX_GPIO_Init(void) {
     GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
 
     GPIO_InitStruct.Pin   = LD2_Pin;
     GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
@@ -300,10 +310,25 @@ MX_GPIO_Init(void) {
 //  * @brief This function handles TIM2 global interrupt.
 void
 TIM2_IRQHandler(void) {
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     if(pLeftControlledMotor)
         pLeftControlledMotor->Update();
     HAL_TIM_IRQHandler(&htim2);
+}
+
+
+//  * @brief This function handles EXTI line[15:10] interrupts.
+void
+EXTI15_10_IRQHandler(void) {
+    HAL_GPIO_EXTI_IRQHandler(B1_Pin);
+}
+
+
+void
+HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if(GPIO_Pin == B1_Pin) {
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+        bRun = !bRun;
+    }
 }
 
 
