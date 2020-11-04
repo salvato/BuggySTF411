@@ -155,7 +155,8 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)"
 LDSCRIPT = STM32F411RETx_FLASH.ld
 
 # libraries
-LIBS = -lc -lm -lnosys
+# Need to add  -lsupc++ when using operator new !!! 
+LIBS = -lc -lm -lnosys -lsupc++
 LIBDIR = 
 # Need to add  -specs=nosys.specs !!!
 LDFLAGS = $(MCU)  -specs=nosys.specs -specs=nano.specs -T$(LDSCRIPT) $(LIBDIR) $(LIBS) -Wl,-Map=$(BUILD_DIR)/$(TARGET).map,--cref -Wl,--gc-sections

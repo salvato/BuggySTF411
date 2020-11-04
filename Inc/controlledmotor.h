@@ -8,10 +8,18 @@
 class ControlledMotor
 {
 public:
-    ControlledMotor(DcMotor* _pMotor, Encoder* _pEncoder, PID *_pPID);
+    ControlledMotor(DcMotor* _pMotor, Encoder* _pEncoder);
 
 private:
     DcMotor* pMotor;
     Encoder* pEncoder;
     PID*     pPID;
+
+private:
+    double speed;
+    double output;
+    double setpoint;
+    double Kp;
+    double Ki;
+    double Kd;
 };

@@ -37,17 +37,7 @@ DcMotor rightMotor(GPIOC, GPIO_PIN_10,
                    GPIOC, GPIO_PIN_11,
                    GPIOA, GPIO_PIN_7, TIM3);
 
-// PID(pInput, pOutput, pSetpoint,
-//     Kp, Ki, Kd, ControllerDirection)
-
-double leftSpeed;
-double leftOutput;
-double leftSetpoint;
-double leftKp;
-double leftKi;
-double leftKd;
-PID leftPID(&leftSpeed, &leftOutput, &leftSetpoint,
-            leftKp, leftKi, leftKd, P_ON_E, DIRECT);
+ControlledMotor leftControlledMotor(&leftMotor, &leftEncoder);
 
 double rightSpeed;
 double rightOutput;
