@@ -9,16 +9,21 @@ class ControlledMotor
 {
 public:
     ControlledMotor(DcMotor* _pMotor, Encoder* _pEncoder);
+    void Update();
+    void setTargetSpeed(double newSpeed);
+
+public:
+    PID*     pPID;
+    double   speed;
+    double   output;
+    double   setpoint;
 
 private:
     DcMotor* pMotor;
     Encoder* pEncoder;
-    PID*     pPID;
 
 private:
-    double speed;
-    double output;
-    double setpoint;
+    int    msSampleTime;
     double Kp;
     double Ki;
     double Kd;

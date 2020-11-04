@@ -2,7 +2,6 @@
 #include "main.h"
 #include "stm32f4xx_it.h"
 
-extern TIM_HandleTypeDef htim2;
 extern DMA_HandleTypeDef hdma_usart2_tx;
 extern DMA_HandleTypeDef hdma_usart2_rx;
 
@@ -93,12 +92,4 @@ DMA1_Stream5_IRQHandler(void) {
 void
 DMA1_Stream6_IRQHandler(void) {
     HAL_DMA_IRQHandler(&hdma_usart2_tx);
-}
-
-
-//  * @brief This function handles TIM2 global interrupt.
-void
-TIM2_IRQHandler(void) {
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_TIM_IRQHandler(&htim2);
 }

@@ -42,7 +42,7 @@ ControlledMotor rightControlledMotor(&rightMotor, &rightEncoder);
 
 
 TIM_HandleTypeDef htim2;        // Samplig Timer
-uint32_t samplingFrequency = 4; // Sampling Frequency [Hz]
+uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
 
 
 UART_HandleTypeDef huart2;
@@ -161,13 +161,15 @@ main(void) {
 
     HAL_TIM_Base_Start_IT(&htim2);
 
+    leftControlledMotor.setTargetSpeed(3.0);
     // Main Loop
-    unsigned testVal = 0;
+//    unsigned testVal = 0;
     while(true) {
-        testVal++;
-        testVal = testVal % 512;
-        leftMotor.setSpeed(testVal-256);
-        sprintf((char *)sMessage, "Speed: %3d\n", testVal);
+//        testVal++;
+//        testVal = testVal % 512;
+//        leftMotor.setSpeed(testVal-256);
+        HAL_Delay(300);
+        sprintf((char *)sMessage, "Speed: %d\n", int(leftControlledMotor.speed));
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();
@@ -288,6 +290,15 @@ MX_GPIO_Init(void) {
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+}
+
+
+//  * @brief This function handles TIM2 global interrupt.
+void
+TIM2_IRQHandler(void) {
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    leftControlledMotor.Update();
+    HAL_TIM_IRQHandler(&htim2);
 }
 
 
