@@ -1,7 +1,11 @@
 #include "encoder.h"
 #include "string.h" // for memset()
 
-// 48 CPR quadrature encoder ??
+
+// 48 CPR Quadrature Encoder ??
+// Motor Gear Ratio 1:9
+const double CountsPerTurn = 9.0*4.0*12.0;
+
 
 Encoder::Encoder(TIM_TypeDef *_timer)
     : timer(_timer)
@@ -16,8 +20,8 @@ Encoder::start() {
 
 
 double
-Encoder::read() {
-    return double(int16_t(timer->CNT))/48.0;
+Encoder::read() { // in Giri Motore
+    return double(int16_t(timer->CNT))/CountsPerTurn;
 }
 
 
@@ -27,8 +31,9 @@ Encoder::reset() {
 }
 
 
-double Encoder::readAndReset() {
-    double value = double(int16_t(timer->CNT))/48.0;
+double
+Encoder::readAndReset() { // in Giri Motore
+    double value = double(int16_t(timer->CNT))/CountsPerTurn;
     TIM1->CNT = 0;
     return value;
 }

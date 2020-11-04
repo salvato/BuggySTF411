@@ -37,11 +37,11 @@ DcMotor rightMotor(GPIOC, GPIO_PIN_10,
                    GPIOC, GPIO_PIN_11,
                    GPIOA, GPIO_PIN_7, TIM3);
 
-ControlledMotor leftControlledMotor(&leftMotor,   &leftEncoder);
-ControlledMotor rightControlledMotor(&rightMotor, &rightEncoder);
+ControlledMotor* pLeftControlledMotor  = nullptr;
+ControlledMotor* pRightControlledMotor = nullptr;
 
 
-TIM_HandleTypeDef htim2;        // Samplig Timer
+TIM_HandleTypeDef htim2;          // Samplig Timer
 uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
 
 
@@ -50,10 +50,12 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 uint8_t sMessage[255];
 
+volatile bool bRun;
 
-//============================
+
+//====================================
 // Private function prototypes
-//============================
+//====================================
 void SystemClock_Config(void);
 
 static void MX_GPIO_Init(void);
@@ -159,15 +161,19 @@ main(void) {
         Error_Handler();
     }
 
+    pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  samplingFrequency);
+    pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, samplingFrequency);
+
+    pLeftControlledMotor->setTargetSpeed(2.0);
 
     HAL_TIM_Base_Start_IT(&htim2);
 
-    leftControlledMotor.setTargetSpeed(5);
+    bRun = false;
 
     // Main Loop
     while(true) {
         HAL_Delay(300);
-        sprintf((char *)sMessage, "Speed: %d\n", int(leftControlledMotor.currentSpeed));
+        sprintf((char *)sMessage, "Speed: %d\n", int(pLeftControlledMotor->currentSpeed)*100);
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();
@@ -295,7 +301,8 @@ MX_GPIO_Init(void) {
 void
 TIM2_IRQHandler(void) {
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    leftControlledMotor.Update();
+    if(pLeftControlledMotor)
+        pLeftControlledMotor->Update();
     HAL_TIM_IRQHandler(&htim2);
 }
 

@@ -8,7 +8,7 @@
 class ControlledMotor
 {
 public:
-    ControlledMotor(DcMotor* _pMotor, Encoder* _pEncoder);
+    ControlledMotor(DcMotor* _pMotor, Encoder* _pEncoder, uint32_t samplingFrequency);
     void Update();
     void setTargetSpeed(double newSpeed);
 
