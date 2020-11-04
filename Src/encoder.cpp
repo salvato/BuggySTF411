@@ -1,6 +1,7 @@
 #include "encoder.h"
 #include "string.h" // for memset()
 
+// 48 CPR quadrature encoder ??
 
 Encoder::Encoder(TIM_TypeDef *_timer)
     : timer(_timer)
@@ -14,9 +15,9 @@ Encoder::start() {
 }
 
 
-int16_t
+double
 Encoder::read() {
-    return int16_t(timer->CNT);
+    return double(int16_t(timer->CNT))/48.0;
 }
 
 
@@ -26,9 +27,8 @@ Encoder::reset() {
 }
 
 
-int16_t
-Encoder::readAndReset() {
-    int16_t value = int16_t(TIM1->CNT);
+double Encoder::readAndReset() {
+    double value = double(int16_t(timer->CNT))/48.0;
     TIM1->CNT = 0;
     return value;
 }

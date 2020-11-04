@@ -23,7 +23,7 @@ private:
 private:
     double output;
     double setpoint;
-    int    msSampleTime;
+    double sampleTime;
     double Kp;
     double Ki;
     double Kd;

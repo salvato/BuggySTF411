@@ -8,9 +8,9 @@ public:
     Encoder(TIM_TypeDef* _timer);
     void init();
     void start();
-    int16_t read();
+    double read();
     void reset();
-    int16_t readAndReset();
+    double readAndReset();
 
 private:
     TIM_TypeDef*      timer;

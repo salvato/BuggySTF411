@@ -140,15 +140,18 @@ main(void) {
     MX_I2C1_Init();
 
     leftEncoder.init();
-    rightEncoder.init();
-
+    leftEncoder.start();
     leftMotor.init();
+
+    rightEncoder.init();
+    rightEncoder.start();
     rightMotor.init();
+
+    // Initialize the Serial Communication Port (/dev/ttyACM0)
+    MX_USART2_UART_Init();
 
     // Initialize the Periodic Samplig Timer
     MX_TIM2_Init();
-
-    MX_USART2_UART_Init();
 
     sprintf((char *)sMessage, "\n\n\nBuggySTF411 - Program Started\n");
     if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
@@ -156,12 +159,10 @@ main(void) {
         Error_Handler();
     }
 
-    leftEncoder.start();
-    rightEncoder.start();
 
     HAL_TIM_Base_Start_IT(&htim2);
 
-    leftControlledMotor.setTargetSpeed(3.0);
+    leftControlledMotor.setTargetSpeed(5);
 
     // Main Loop
     while(true) {
