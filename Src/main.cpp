@@ -37,16 +37,9 @@ DcMotor rightMotor(GPIOC, GPIO_PIN_10,
                    GPIOC, GPIO_PIN_11,
                    GPIOA, GPIO_PIN_7, TIM3);
 
-ControlledMotor leftControlledMotor(&leftMotor, &leftEncoder);
+ControlledMotor leftControlledMotor(&leftMotor,   &leftEncoder);
+ControlledMotor rightControlledMotor(&rightMotor, &rightEncoder);
 
-double rightSpeed;
-double rightOutput;
-double rightSetpoint;
-double rightKp;
-double rightKi;
-double rightKd;
-PID rightPID(&rightSpeed, &rightOutput, &rightSetpoint,
-            rightKp, rightKi, rightKd, P_ON_E, DIRECT);
 
 TIM_HandleTypeDef htim2;        // Samplig Timer
 uint32_t samplingFrequency = 4; // Sampling Frequency [Hz]
