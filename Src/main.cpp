@@ -162,14 +162,11 @@ main(void) {
     HAL_TIM_Base_Start_IT(&htim2);
 
     leftControlledMotor.setTargetSpeed(3.0);
+
     // Main Loop
-//    unsigned testVal = 0;
     while(true) {
-//        testVal++;
-//        testVal = testVal % 512;
-//        leftMotor.setSpeed(testVal-256);
         HAL_Delay(300);
-        sprintf((char *)sMessage, "Speed: %d\n", int(leftControlledMotor.speed));
+        sprintf((char *)sMessage, "Speed: %d\n", int(leftControlledMotor.currentSpeed));
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();

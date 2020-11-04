@@ -13,16 +13,16 @@ public:
     void setTargetSpeed(double newSpeed);
 
 public:
-    PID*     pPID;
-    double   speed;
-    double   output;
-    double   setpoint;
+    double   currentSpeed;
 
 private:
     DcMotor* pMotor;
     Encoder* pEncoder;
+    PID*     pPID;
 
 private:
+    double output;
+    double setpoint;
     int    msSampleTime;
     double Kp;
     double Ki;

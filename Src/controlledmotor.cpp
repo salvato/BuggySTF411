@@ -4,11 +4,11 @@
 ControlledMotor::ControlledMotor(DcMotor *_pMotor, Encoder *_pEncoder)
     : pMotor(_pMotor)
     , pEncoder(_pEncoder)
-    , Kp(10.0)
+    , Kp(1.0)
     , Ki(0.1)
     , Kd(0.0)
 {
-    pPID = new PID(&speed, &output, &setpoint,
+    pPID = new PID(&currentSpeed, &output, &setpoint,
                    Kp, Ki, Kd, P_ON_E, DIRECT);
     msSampleTime = 100;
     pPID->SetSampleTime(msSampleTime);
@@ -19,7 +19,7 @@ ControlledMotor::ControlledMotor(DcMotor *_pMotor, Encoder *_pEncoder)
 
 void
 ControlledMotor::Update() {
-    speed = pEncoder->readAndReset();
+    currentSpeed = double(pEncoder->readAndReset())*1000.0/double(msSampleTime);
     pPID->Compute();
     // Update new speed
     pMotor->setSpeed(output);
