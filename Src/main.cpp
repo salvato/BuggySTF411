@@ -13,6 +13,8 @@
 #include "stdio.h"
 #include "encoder.h"
 #include "dcmotor.h"
+#include "PID_v1.h"
+#include "controlledmotor.h"
 
 
 //==================
@@ -23,6 +25,10 @@ I2C_HandleTypeDef hi2c1;
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
 
+// DcMotor(forwardPort, forwardPin,
+//         reversePort,  reversePin,
+//         pwmPort,  pwmPin, pwmTimer)
+
 DcMotor leftMotor(GPIOC, GPIO_PIN_8,
                   GPIOC, GPIO_PIN_9,
                   GPIOA, GPIO_PIN_6, TIM3);
@@ -31,6 +37,26 @@ DcMotor rightMotor(GPIOC, GPIO_PIN_10,
                    GPIOC, GPIO_PIN_11,
                    GPIOA, GPIO_PIN_7, TIM3);
 
+// PID(pInput, pOutput, pSetpoint,
+//     Kp, Ki, Kd, ControllerDirection)
+
+double leftSpeed;
+double leftOutput;
+double leftSetpoint;
+double leftKp;
+double leftKi;
+double leftKd;
+PID leftPID(&leftSpeed, &leftOutput, &leftSetpoint,
+            leftKp, leftKi, leftKd, P_ON_E, DIRECT);
+
+double rightSpeed;
+double rightOutput;
+double rightSetpoint;
+double rightKp;
+double rightKi;
+double rightKd;
+PID rightPID(&rightSpeed, &rightOutput, &rightSetpoint,
+            rightKp, rightKi, rightKd, P_ON_E, DIRECT);
 
 TIM_HandleTypeDef htim2;        // Samplig Timer
 uint32_t samplingFrequency = 4; // Sampling Frequency [Hz]
