@@ -166,7 +166,7 @@ HMC5883L::Write(uint8_t address, uint8_t val) {
 }
 
 
-void
+bool
 HMC5883L::Read(uint8_t address, int16_t length, uint8_t* buffer) {
     HAL_StatusTypeDef result;
     result = HAL_I2C_Master_Transmit(pHi2c,
@@ -175,14 +175,15 @@ HMC5883L::Read(uint8_t address, int16_t length, uint8_t* buffer) {
                                      1,
                                      10);
     if(result != HAL_OK)
-        Error_Handler();
+        return false;
     result = HAL_I2C_Master_Receive(pHi2c,
                                     (uint16_t)dev_address,
                                     (uint8_t *)buffer,
                                     length,
                                     10);
     if(result != HAL_OK)
-        Error_Handler();
+        return false;
+    return true;
 }
 
 

@@ -182,8 +182,8 @@ public:
     byte getClockSource();
     void setClockSource(byte _CLKsource); // see register parameters above
 
-    void writemem(uint8_t address, uint8_t val);
-    void readmem(uint8_t address, uint8_t length, uint8_t buffer[]);
+    bool writemem(uint8_t address, uint8_t val);
+    bool readmem(uint8_t address, uint8_t length, uint8_t buffer[]);
 
 protected:
     void init(byte _SRateDiv, byte _Range, byte _filterBW, byte _ClockSrc, uint8_t _ITGReady, uint8_t _INTRawDataReady);

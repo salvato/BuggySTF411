@@ -26,8 +26,6 @@
 
 extern void Error_Handler(void);
 
-using namespace std;
-
 
 ITG3200::ITG3200() {
     pHi2c       = nullptr;
@@ -47,7 +45,7 @@ ITG3200::init(uint16_t  _address, I2C_HandleTypeDef *_pHi2c) {
 
     readmem(WHO_AM_I, 3, &buff[0]); // Presence Check
     if(buff[0] != ITG3200_ADDR_AD0_LOW)
-        Error_Handler();
+        return false;
 
     // Uncomment or change your default ITG3200 initialization
 
@@ -419,7 +417,7 @@ ITG3200::setClockSource(byte _CLKsource) {
 }
 
 
-void
+bool
 ITG3200::writemem(uint8_t address, uint8_t val) {
     std::array<uint8_t, 2> data{address, val};
     HAL_StatusTypeDef result;
@@ -429,12 +427,13 @@ ITG3200::writemem(uint8_t address, uint8_t val) {
                                      data.size(),
                                      10);
     if(result != HAL_OK) {
-        Error_Handler();
+        return false;;
     }
+    return true;
 }
 
 
-void
+bool
 ITG3200::readmem(uint8_t address, uint8_t length, uint8_t buffer[]) {
     // sends register address to read from
     HAL_StatusTypeDef result;
@@ -444,7 +443,8 @@ ITG3200::readmem(uint8_t address, uint8_t length, uint8_t buffer[]) {
                             1,
                             10);
     if(result != HAL_OK)
-        Error_Handler();
+        return false;
+
     // receive data
     result = HAL_I2C_Master_Receive(pHi2c,
                                     (uint16_t)dev_address,
@@ -452,6 +452,7 @@ ITG3200::readmem(uint8_t address, uint8_t length, uint8_t buffer[]) {
                                      length,
                                      10);
     if(result != HAL_OK)
-        Error_Handler();
+        return false;
+    return true;
 }
 

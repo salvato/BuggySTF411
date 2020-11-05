@@ -81,7 +81,7 @@ public:
 
 protected:
     void Write(uint8_t address, uint8_t val);
-    void Read(uint8_t address, int16_t length, uint8_t *buffer);
+    bool Read(uint8_t address, int16_t length, uint8_t *buffer);
 
 private:
     I2C_HandleTypeDef* pHi2c;
