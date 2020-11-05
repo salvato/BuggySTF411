@@ -177,14 +177,14 @@ main(void) {
     // Main Loop
     while(true) {
         HAL_Delay(300);
-        sprintf((char *)sMessage, "Speed: %d\n", int(pLeftControlledMotor->currentSpeed)*100);
+        sprintf((char *)sMessage, "Speed: %d\n", int(pLeftControlledMotor->currentSpeed*100.0));
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();
         }
         if(bRun != oldStatus) {
             oldStatus = bRun;
-            targetSpeed = -targetSpeed;
+            targetSpeed = 2.0-targetSpeed;
             pLeftControlledMotor->setTargetSpeed(targetSpeed);
         }
     }

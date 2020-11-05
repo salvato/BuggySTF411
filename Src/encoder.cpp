@@ -2,9 +2,10 @@
 #include "string.h" // for memset()
 
 
-// 48 CPR Quadrature Encoder ??
+// 12 CPR Quadrature Encoder ??
 // Motor Gear Ratio 1:9
-const double CountsPerTurn = 9.0*4.0*12.0;
+// Quadrature encoder mode 3 (x4 mode)
+const double CountsPerTurn = 12.0*9.0*4.0;
 
 
 Encoder::Encoder(TIM_TypeDef *_timer)

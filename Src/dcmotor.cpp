@@ -44,7 +44,7 @@ DcMotor::init() {
     }
     __HAL_RCC_TIM3_CLK_ENABLE();
 
-    // Compute the prescaler value to have TIM3 counter clock equal to 4096000Hz
+    // Compute the prescaler value to have TIM3 counter clock equal to 128KHz
     uint32_t uhPrescalerValue = (uint32_t)(SystemCoreClock / 128000) - 1;
 
     TIM_MasterConfigTypeDef sMasterConfig;
