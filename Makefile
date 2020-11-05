@@ -67,6 +67,10 @@ Src/dcmotor.cpp \
 Src/utility.cpp \
 Src/PID_v1.cpp \
 Src/controlledmotor.cpp \
+Src/ADXL345.cpp \
+Src/HMC5883L.cpp \
+Src/ITG3200.cpp \
+Src/MadgwickAHRS.cpp \
 
 
 # ASM sources

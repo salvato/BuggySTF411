@@ -15,11 +15,21 @@
 #include "dcmotor.h"
 #include "PID_v1.h"
 #include "controlledmotor.h"
+#include <ADXL345.h>
+#include <ITG3200.h>
+#include <HMC5883L.h>
+#include "MadgwickAHRS.h"
+
+
+#define BAUD_RATE 9600
+#define I2C_SPEEDCLOCK 400000 // Hz
 
 
 //==================
 // Private variables
 //==================
+bool bAHRSpresent;
+
 I2C_HandleTypeDef hi2c1;
 
 Encoder leftEncoder(TIM1);
@@ -41,8 +51,17 @@ ControlledMotor* pLeftControlledMotor  = nullptr;
 ControlledMotor* pRightControlledMotor = nullptr;
 
 
+ADXL345  Acc;      // 400KHz I2C Capable. Maximum Output Data Rate is 800 Hz
+ITG3200  Gyro;     // 400KHz I2C Capable
+HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
+Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
+
+static float values[9];
+
+
 TIM_HandleTypeDef htim2;          // Samplig Timer
 uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
+//uint32_t samplingFrequency = 300; // Hz
 
 
 UART_HandleTypeDef huart2;
@@ -61,10 +80,10 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
-
 static void MX_TIM2_Init(void);
-
 static void MX_USART2_UART_Init(void);
+
+static bool Sensors_Init();
 
 
 //=========================================
@@ -155,6 +174,28 @@ main(void) {
     // Initialize the Periodic Samplig Timer
     MX_TIM2_Init();
 
+    // 10DOF Sensor Initialization
+    bAHRSpresent = Sensors_Init();
+
+    if(bAHRSpresent) {
+        Madgwick.begin(float(samplingFrequency));
+
+        // Get the first Sensor data
+        while(!Acc.getInterruptSource(7)) {}
+        Acc.get_Gxyz(&values[0]);
+        while(!Gyro.isRawDataReadyOn()) {}
+        Gyro.readGyro(&values[3]);
+        while(!Magn.isDataReady()) {}
+        Magn.ReadScaledAxis(&values[6]);
+
+        // Initial estimate of the attitude (assumed a static sensor !)
+        for(int i=0; i<10000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
+            Madgwick.update(values[3], values[4], values[5], // Gyro in degrees/sec
+                            values[0], values[1], values[2], // Acc
+                            values[6], values[7], values[8]);// Mag
+        }
+    }
+
     sprintf((char *)sMessage, "\n\n\nBuggySTF411 - Program Started\n");
     if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
         HAL_TIM_Base_Stop_IT(&htim2);
@@ -174,6 +215,7 @@ main(void) {
     // Enable and set Button EXTI Interrupt to the lowest priority
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
     bool oldStatus = bRun;
+
     // Main Loop
     while(true) {
         HAL_Delay(300);
@@ -184,8 +226,12 @@ main(void) {
         }
         if(bRun != oldStatus) {
             oldStatus = bRun;
-            targetSpeed = 2.0-targetSpeed;
-            pLeftControlledMotor->setTargetSpeed(targetSpeed);
+            if(!bRun)
+                pLeftControlledMotor->Stop();
+            else {
+                targetSpeed = -targetSpeed;
+                pLeftControlledMotor->setTargetSpeed(targetSpeed);
+            }
         }
     }
 }
@@ -194,7 +240,7 @@ main(void) {
 static void
 MX_I2C1_Init(void) {
     hi2c1.Instance = I2C1;
-    hi2c1.Init.ClockSpeed      = 100000;
+    hi2c1.Init.ClockSpeed      = I2C_SPEEDCLOCK;
     hi2c1.Init.DutyCycle       = I2C_DUTYCYCLE_2;
     hi2c1.Init.OwnAddress1     = 0;
     hi2c1.Init.AddressingMode  = I2C_ADDRESSINGMODE_7BIT;
@@ -257,7 +303,7 @@ MX_TIM2_Init(void) {
 static void
 MX_USART2_UART_Init(void) {
     huart2.Instance = USART2;
-    huart2.Init.BaudRate     = 9600;
+    huart2.Init.BaudRate     = BAUD_RATE;
     huart2.Init.WordLength   = UART_WORDLENGTH_8B;
     huart2.Init.StopBits     = UART_STOPBITS_1;
     huart2.Init.Parity       = UART_PARITY_NONE;
@@ -304,6 +350,48 @@ MX_GPIO_Init(void) {
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+}
+
+
+bool
+Sensors_Init() {
+    bool bResult;
+
+    // Accelerator Init
+    bResult = Acc.init(ADXL345_ADDR_ALT_LOW, &hi2c1);
+    if(!bResult) {
+        return false;
+    }
+    Acc.setRangeSetting(2); // +/- 2g. Possible values are: 2g, 4g, 8g, 16g
+
+    // Gyroscope Init
+    bResult = Gyro.init(ITG3200_ADDR_AD0_LOW, &hi2c1);
+    if(!bResult) {
+        return false;
+    }
+    HAL_Delay(100);
+    Gyro.zeroCalibrate(600); // calibrate the ITG3200
+
+//        Gyro.offsets[0] = -20.0;
+//        Gyro.offsets[1] = -110.0;
+//        Gyro.offsets[2] = -35.0;
+
+    // Magnetometer Init
+    bResult = Magn.init(HMC5883L_Address, &hi2c1);
+    if(!bResult) {
+        return false;
+    }
+    HAL_Delay(100);
+    int16_t error = Magn.SetScale(1300); // Set the scale (in milli Gauss) of the compass.
+    if(error != 0) {
+        return false;
+    }
+    HAL_Delay(100);
+    error = Magn.SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
+    if(error != 0) {
+        return false;
+    }
+    return true;
 }
 
 

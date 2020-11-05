@@ -994,6 +994,10 @@ Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_tim.c
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usart.c
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.c
 Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_utils.c
+Inc/ADXL345.h
+Inc/HMC5883L.h
+Inc/ITG3200.h
+Inc/MadgwickAHRS.h
 Inc/PID_v1.h
 Inc/controlledmotor.h
 Inc/dcmotor.h
@@ -1004,6 +1008,10 @@ Inc/stm32f4xx_it.h
 Inc/utility.h
 Makefile
 STM32F411RETx_FLASH.ld
+Src/ADXL345.cpp
+Src/HMC5883L.cpp
+Src/ITG3200.cpp
+Src/MadgwickAHRS.cpp
 Src/PID_v1.cpp
 Src/controlledmotor.cpp
 Src/dcmotor.cpp
