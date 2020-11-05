@@ -372,10 +372,6 @@ Sensors_Init() {
     HAL_Delay(100);
     Gyro.zeroCalibrate(600); // calibrate the ITG3200
 
-//        Gyro.offsets[0] = -20.0;
-//        Gyro.offsets[1] = -110.0;
-//        Gyro.offsets[2] = -35.0;
-
     // Magnetometer Init
     bResult = Magn.init(HMC5883L_Address, &hi2c1);
     if(!bResult) {
