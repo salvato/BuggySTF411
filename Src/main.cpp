@@ -158,6 +158,8 @@ main(void) {
 
     MX_GPIO_Init();
     MX_DMA_Init();
+    // Initialize the Serial Communication Port (/dev/ttyACM0)
+    MX_USART2_UART_Init();
 
     leftEncoder.init();
     leftEncoder.start();
@@ -166,9 +168,6 @@ main(void) {
     rightEncoder.init();
     rightEncoder.start();
     rightMotor.init();
-
-    // Initialize the Serial Communication Port (/dev/ttyACM0)
-    MX_USART2_UART_Init();
 
     // Initialize the Periodic Samplig Timer
     MX_TIM2_Init();
@@ -210,16 +209,15 @@ main(void) {
 
     HAL_TIM_Base_Start_IT(&htim2);
 
+    // Enable and set Button EXTI Interrupt
     bRun = false;
-
-    // Enable and set Button EXTI Interrupt to the lowest priority
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-    bool oldStatus = bRun;
 
+    bool oldStatus = bRun;
     // Main Loop
     while(true) {
         HAL_Delay(300);
-        sprintf((char *)sMessage, "Speed: %4d Time: %u\n",
+        sprintf((char *)sMessage, "Speed: %4d Time: %lu\n",
                 int(pLeftControlledMotor->currentSpeed*100.0),
                 HAL_GetTick());
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
@@ -228,14 +226,17 @@ main(void) {
         }
         if(bRun != oldStatus) {
             oldStatus = bRun;
-            if(!bRun)
+            if(!bRun) {
                 pLeftControlledMotor->Stop();
+                HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+            }
             else {
                 targetSpeed = -targetSpeed;
                 pLeftControlledMotor->setTargetSpeed(targetSpeed);
+                HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
             }
         }
-    }
+    } // while(true)
 }
 
 
@@ -357,38 +358,28 @@ MX_GPIO_Init(void) {
 
 bool
 Sensors_Init() {
-    bool bResult;
-
     // Accelerator Init
-    bResult = Acc.init(ADXL345_ADDR_ALT_LOW, &hi2c1);
-    if(!bResult) {
+    if(!Acc.init(ADXL345_ADDR_ALT_LOW, &hi2c1))
         return false;
-    }
     Acc.setRangeSetting(2); // +/- 2g. Possible values are: 2g, 4g, 8g, 16g
 
     // Gyroscope Init
-    bResult = Gyro.init(ITG3200_ADDR_AD0_LOW, &hi2c1);
-    if(!bResult) {
+    if(!Gyro.init(ITG3200_ADDR_AD0_LOW, &hi2c1))
         return false;
-    }
     HAL_Delay(100);
     Gyro.zeroCalibrate(600); // calibrate the ITG3200
 
     // Magnetometer Init
-    bResult = Magn.init(HMC5883L_Address, &hi2c1);
-    if(!bResult) {
+    if(!Magn.init(HMC5883L_Address, &hi2c1))
         return false;
-    }
     HAL_Delay(100);
-    int16_t error = Magn.SetScale(1300); // Set the scale (in milli Gauss) of the compass.
-    if(error != 0) {
+    if(Magn.SetScale(1300) != 0)
         return false;
-    }
     HAL_Delay(100);
-    error = Magn.SetMeasurementMode(Measurement_Continuous); // Set the measurement mode to Continuous
-    if(error != 0) {
+
+    // Set the measurement mode to Continuous
+    if(Magn.SetMeasurementMode(Measurement_Continuous) != 0)
         return false;
-    }
     return true;
 }
 
@@ -422,7 +413,6 @@ EXTI15_10_IRQHandler(void) {
 void
 HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if(GPIO_Pin == B1_Pin) {
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         bRun = !bRun;
     }
 }

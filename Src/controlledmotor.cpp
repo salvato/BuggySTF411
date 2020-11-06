@@ -38,6 +38,6 @@ ControlledMotor::setTargetSpeed(double newSpeed) {
 
 void
 ControlledMotor::Stop() {
-    pMotor->setSpeed(0.0);
+    setpoint     = 0.0;
     pMotor->stop();
 }
