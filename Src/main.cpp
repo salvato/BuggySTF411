@@ -205,8 +205,6 @@ main(void) {
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, samplingFrequency);
 
     double targetSpeed = 2.0;
-    pLeftControlledMotor->setTargetSpeed(targetSpeed);
-
     HAL_TIM_Base_Start_IT(&htim2);
 
     // Enable and set Button EXTI Interrupt
@@ -227,7 +225,8 @@ main(void) {
         if(bRun != oldStatus) {
             oldStatus = bRun;
             if(!bRun) {
-                pLeftControlledMotor->Stop();
+                //pLeftControlledMotor->Stop();
+                pLeftControlledMotor->setTargetSpeed(0.0);
                 HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
             }
             else {
