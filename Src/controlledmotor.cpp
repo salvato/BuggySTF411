@@ -24,15 +24,15 @@ ControlledMotor::ControlledMotor(DcMotor *_pMotor, Encoder *_pEncoder, uint32_t 
 void
 ControlledMotor::Update() {
     currentSpeed = pEncoder->readAndReset()/sampleTime; // in Giri/sec
-    pPID->Compute();
-    // Update new speed
-    pMotor->setSpeed(output);
+    if(pPID->Compute())
+        pMotor->setSpeed(output);// Update new speed
 }
 
 
 void
 ControlledMotor::setTargetSpeed(double newSpeed) {
     setpoint = newSpeed;
+    pPID->SetMode(AUTOMATIC);
 }
 
 
@@ -40,4 +40,5 @@ void
 ControlledMotor::Stop() {
     pMotor->stop();
     setpoint = 0.0;
+    pPID->SetMode(MANUAL);
 }

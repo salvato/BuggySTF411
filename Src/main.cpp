@@ -225,8 +225,7 @@ main(void) {
         if(bRun != oldStatus) {
             oldStatus = bRun;
             if(!bRun) {
-                //pLeftControlledMotor->Stop();
-                pLeftControlledMotor->setTargetSpeed(0.0);
+                pLeftControlledMotor->Stop();
                 HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
             }
             else {
