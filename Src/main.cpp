@@ -60,8 +60,8 @@ static volatile float AHRSvalues[9];
 
 
 TIM_HandleTypeDef htim2;          // Samplig Timer
-uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
-//uint32_t samplingFrequency = 300; // Hz
+//uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
+uint32_t samplingFrequency = 300; // Hz
 
 
 UART_HandleTypeDef huart2;
@@ -84,6 +84,7 @@ static void MX_TIM2_Init(void);
 static void MX_USART2_UART_Init(void);
 
 static bool Sensors_Init();
+static void AHRS_Init();
 
 
 //=========================================
@@ -176,24 +177,8 @@ main(void) {
     MX_I2C1_Init();
     bAHRSpresent = Sensors_Init();
 
-    if(bAHRSpresent) {
-        Madgwick.begin(float(samplingFrequency));
-
-        // Get the first Sensor data
-        while(!Acc.getInterruptSource(7)) {}
-        Acc.get_Gxyz(&AHRSvalues[0]);
-        while(!Gyro.isRawDataReadyOn()) {}
-        Gyro.readGyro(&AHRSvalues[3]);
-        while(!Magn.isDataReady()) {}
-        Magn.ReadScaledAxis(&AHRSvalues[6]);
-
-        // Initial estimate of the attitude (assumed a static sensor !)
-        for(int i=0; i<10000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
-            Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5], // Gyro in degrees/sec
-                            AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
-                            AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);// Mag
-        }
-    }
+    if(bAHRSpresent)
+        AHRS_Init();
 
     sprintf((char *)sMessage, "\n\n\nBuggySTF411 - Program Started\n");
     if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
@@ -216,7 +201,7 @@ main(void) {
     //                                Main Loop
     //=======================================================================
     while(true) {
-        HAL_Delay(300);
+//        HAL_Delay(300);
         sprintf((char *)sMessage, "Speed: %4d Time: %lu\n",
                 int(pLeftControlledMotor->currentSpeed*100.0),
                 HAL_GetTick());
@@ -384,6 +369,27 @@ Sensors_Init() {
     if(Magn.SetMeasurementMode(Measurement_Continuous) != 0)
         return false;
     return true;
+}
+
+
+void
+AHRS_Init() {
+    Madgwick.begin(float(samplingFrequency));
+
+    // Get the first Sensor data
+    while(!Acc.getInterruptSource(7)) {}
+    Acc.get_Gxyz(&AHRSvalues[0]);
+    while(!Gyro.isRawDataReadyOn()) {}
+    Gyro.readGyro(&AHRSvalues[3]);
+    while(!Magn.isDataReady()) {}
+    Magn.ReadScaledAxis(&AHRSvalues[6]);
+
+    // Initial estimate of the attitude (assumed a static sensor !)
+    for(int i=0; i<10000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
+        Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5], // Gyro in degrees/sec
+                        AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
+                        AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);// Mag
+    }
 }
 
 
