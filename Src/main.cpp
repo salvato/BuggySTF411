@@ -104,7 +104,7 @@ static bool Sensors_Init();
 //==================================
 // I2C1 GPIO Configuration
 //==================================
-// VIN (CN7  18)    ------> +5V
+// VIN (CN7  16)    ------> +3.3V
 // GND (CN7  20)    ------> GND
 // PB8 (CN10  3)    ------> I2C1_SCL
 // PB9 (CN10  5)    ------> I2C1_SDA
@@ -158,7 +158,6 @@ main(void) {
 
     MX_GPIO_Init();
     MX_DMA_Init();
-    MX_I2C1_Init();
 
     leftEncoder.init();
     leftEncoder.start();
@@ -175,6 +174,7 @@ main(void) {
     MX_TIM2_Init();
 
     // 10DOF Sensor Initialization
+    MX_I2C1_Init();
     bAHRSpresent = Sensors_Init();
 
     if(bAHRSpresent) {
@@ -219,7 +219,9 @@ main(void) {
     // Main Loop
     while(true) {
         HAL_Delay(300);
-        sprintf((char *)sMessage, "Speed: %d\n", int(pLeftControlledMotor->currentSpeed*100.0));
+        sprintf((char *)sMessage, "Speed: %4d Time: %u\n",
+                int(pLeftControlledMotor->currentSpeed*100.0),
+                HAL_GetTick());
         if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();

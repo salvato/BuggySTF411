@@ -48,9 +48,11 @@ ADXL345::init(int16_t _address, I2C_HandleTypeDef *_pHi2c) {
     pHi2c       = _pHi2c;
     dev_address = _address << 1;
 
-    powerOn();
+    if(!powerOn())
+        return false;
     byte buf;
-    readFrom(ADXL345_DEVID, 1, &buf);
+    if(!readFrom(ADXL345_DEVID, 1, &buf))
+        return false;
     if(buf != ADXL345_IDENTITY)
         return false;
     setAxisOffset(0, 0, 0);
@@ -58,13 +60,15 @@ ADXL345::init(int16_t _address, I2C_HandleTypeDef *_pHi2c) {
 }
 
 
-void
+bool
 ADXL345::powerOn() {
     //Turning on the ADXL345
     //writeTo(ADXL345_POWER_CTL, 0);
     //writeTo(ADXL345_POWER_CTL, 16); // AUTOSLEEP
-    writeTo(ADXL345_POWER_CTL, 8); // Set the Measure Bit
+    if(!writeTo(ADXL345_POWER_CTL, 8)) // Set the Measure Bit
+        return false;
     HAL_Delay(20);
+    return true;
 }
 
 
