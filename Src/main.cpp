@@ -201,11 +201,10 @@ main(void) {
     //                                Main Loop
     //=======================================================================
     while(true) {
-//        HAL_Delay(300);
         sprintf((char *)sMessage, "Speed: %4d Time: %lu\n",
                 int(pLeftControlledMotor->currentSpeed*100.0),
                 HAL_GetTick());
-        if(HAL_UART_Transmit(&huart2, sMessage, strlen((char *)sMessage), 100) != HAL_OK) {
+        if(HAL_UART_Transmit_DMA(&huart2, sMessage, strlen((char *)sMessage)) != HAL_OK) {
             HAL_TIM_Base_Stop_IT(&htim2);
             Error_Handler();
         }
@@ -221,6 +220,15 @@ main(void) {
                 HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
             }
         }
+/*
+        UpdateRemote++;
+        UpdateRemote %= (samplingFrequency/20);
+        if(!UpdateRemote) {
+            Madgwick.getRotation(&q0, &q1, &q2, &q3);
+            sprintf((char *)sMessage, "q %d %d %d %d#", int(q0*1000), int(q1*1000) ,int(q2*1000), int(q3*1000));
+            result = HAL_UART_Transmit_DMA(&huart2, sMessage, strlen((char *)sMessage));
+        }
+*/
     } // while(true)
     //=======================================================================
     //                                 End Loop
