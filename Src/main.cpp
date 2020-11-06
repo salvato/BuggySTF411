@@ -56,7 +56,7 @@ ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 
-static float values[9];
+static float AHRSvalues[9];
 
 
 TIM_HandleTypeDef htim2;          // Samplig Timer
@@ -182,17 +182,17 @@ main(void) {
 
         // Get the first Sensor data
         while(!Acc.getInterruptSource(7)) {}
-        Acc.get_Gxyz(&values[0]);
+        Acc.get_Gxyz(&AHRSvalues[0]);
         while(!Gyro.isRawDataReadyOn()) {}
-        Gyro.readGyro(&values[3]);
+        Gyro.readGyro(&AHRSvalues[3]);
         while(!Magn.isDataReady()) {}
-        Magn.ReadScaledAxis(&values[6]);
+        Magn.ReadScaledAxis(&AHRSvalues[6]);
 
         // Initial estimate of the attitude (assumed a static sensor !)
         for(int i=0; i<10000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
-            Madgwick.update(values[3], values[4], values[5], // Gyro in degrees/sec
-                            values[0], values[1], values[2], // Acc
-                            values[6], values[7], values[8]);// Mag
+            Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5], // Gyro in degrees/sec
+                            AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
+                            AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);// Mag
         }
     }
 
