@@ -167,8 +167,8 @@ public:
     void zeroCalibrate(uint16_t totSamples);	// assuming gyroscope is stationary (updates XYZ offsets for zero)
     void readGyroRawCal(int16_t *_GyroX, int16_t *_GyroY, int16_t *_GyroZ);
     void readGyroRawCal(int16_t *_GyroXYZ);
-    void readGyro(float *_GyroXYZ); // includes gain and offset
-    void readGyro(float *_GyroX, float *_GyroY, float *_GyroZ); // includes gain and offset
+    void readGyro(volatile float *_GyroXYZ); // includes gain and offset
+    void readGyro(volatile float *_GyroX, volatile float *_GyroY, volatile float *_GyroZ); // includes gain and offset
     // Power management
     void reset(); // after reset all registers have default values
     bool isLowPower();

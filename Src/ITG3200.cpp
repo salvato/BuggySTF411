@@ -323,7 +323,7 @@ ITG3200::readGyroRawCal(int16_t *_GyroXYZ) {
 
 
 void
-ITG3200::readGyro(float *_GyroX, float *_GyroY, float *_GyroZ){
+ITG3200::readGyro(volatile float *_GyroX, volatile float *_GyroY, volatile float *_GyroZ) {
     int16_t x, y, z;
      // x,y,z will contain calibrated integer values from the sensor
     readGyroRawCal(&x, &y, &z);
@@ -335,7 +335,7 @@ ITG3200::readGyro(float *_GyroX, float *_GyroY, float *_GyroZ){
 
 
 void
-ITG3200::readGyro(float *_GyroXYZ){
+ITG3200::readGyro(volatile float *_GyroXYZ){
     readGyro(_GyroXYZ, _GyroXYZ+1, _GyroXYZ+2);
 }
 

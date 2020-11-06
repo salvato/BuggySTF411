@@ -143,7 +143,7 @@ HMC5883L::ReadScaledAxis(MagnetometerScaled* scaled) {
 
 
 void
-HMC5883L::ReadScaledAxis(float* value) {
+HMC5883L::ReadScaledAxis(volatile float* value) {
     MagnetometerRaw raw;
     ReadRawAxis(&raw);
     value[0] = raw.XAxis * m_Scale;

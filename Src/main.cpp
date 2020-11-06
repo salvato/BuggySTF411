@@ -56,7 +56,7 @@ ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 
-static float AHRSvalues[9];
+static volatile float AHRSvalues[9];
 
 
 TIM_HandleTypeDef htim2;          // Samplig Timer
@@ -396,7 +396,17 @@ void
 TIM2_IRQHandler(void) {
     if(pLeftControlledMotor)
         pLeftControlledMotor->Update();
-    HAL_TIM_IRQHandler(&htim2);
+    if(bAHRSpresent) {
+        Acc.get_Gxyz(&AHRSvalues[0]);
+        Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
+        Magn.ReadScaledAxis(&AHRSvalues[6]);
+        for(int i=0; i<3; i++) // 13us per call...
+            Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
+                            AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
+                            AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
+    }
+    __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
+    //HAL_TIM_IRQHandler(&htim2);
 }
 
 

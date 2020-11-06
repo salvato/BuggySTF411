@@ -69,7 +69,7 @@ public:
 
     void ReadRawAxis(MagnetometerRaw *raw);
     void ReadScaledAxis(MagnetometerScaled *scaled);
-    void ReadScaledAxis(float* value);
+    void ReadScaledAxis(volatile float *value);
 
     int16_t SetMeasurementMode(uint8_t mode);
     int16_t SetScale(int16_t milliGauss);
