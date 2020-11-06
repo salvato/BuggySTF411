@@ -477,7 +477,7 @@ AHRS_Init() {
 }
 
 
-//  * @brief This function handles TIM2 global interrupt.
+// This function handles TIM2 global interrupt.
 void
 TIM2_IRQHandler(void) {
     if(pLeftControlledMotor)
@@ -531,14 +531,14 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
 
 // This function handles DMA RX interrupt request.
 void
-DMA1_Stream6_IRQHandler(void) {
+USART_DMA_TX_IRQHandler(void) {
     HAL_DMA_IRQHandler(huart2.hdmarx);
 }
 
 
 // This function handles DMA TX interrupt request.
 void
-DMA1_Stream5_IRQHandler(void) {
+USART_DMA_RX_IRQHandler(void) {
     HAL_DMA_IRQHandler(huart2.hdmatx);
 }
 
