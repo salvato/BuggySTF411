@@ -12,6 +12,8 @@ public:
     void Update();
     void setTargetSpeed(double newSpeed);
     void Stop();
+    int32_t getTotalMove();
+
 public:
     double   currentSpeed;
 

@@ -42,3 +42,8 @@ ControlledMotor::Stop() {
     setpoint = 0.0;
     pPID->SetMode(MANUAL);
 }
+
+int32_t
+ControlledMotor::getTotalMove() {
+    return pEncoder->readTotal();
+}

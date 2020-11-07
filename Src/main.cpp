@@ -54,19 +54,15 @@ DcMotor rightMotor(GPIOC, GPIO_PIN_10,
 ControlledMotor* pLeftControlledMotor  = nullptr;
 ControlledMotor* pRightControlledMotor = nullptr;
 
-
 ADXL345  Acc;      // 400KHz I2C Capable. Maximum Output Data Rate is 800 Hz
 ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
-
 static volatile float AHRSvalues[9];
-
 
 TIM_HandleTypeDef htim2;          // Samplig Timer
 //uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
 uint32_t samplingFrequency = 300; // Hz
-
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
@@ -84,10 +80,10 @@ volatile bool bRun;
 //====================================
 void SystemClock_Config(void);
 
-static void MX_GPIO_Init(void);
-static void MX_I2C1_Init(void);
-static void MX_TIM2_Init(void);
-static void MX_USART2_UART_Init(void);
+static void GPIO_Init(void);
+static void I2C1_Init(void);
+static void TIM2_Init(void);
+static void USART2_UART_Init(void);
 
 static bool Sensors_Init();
 static void AHRS_Init_Position();
@@ -163,10 +159,10 @@ main(void) {
     HAL_Init();
     SystemClock_Config();
 
-    MX_GPIO_Init();
+    GPIO_Init();
 
 // Initialize the Serial Communication Port (/dev/ttyACM0)
-    MX_USART2_UART_Init();
+    USART2_UART_Init();
 
     leftEncoder.init();
     leftEncoder.start();
@@ -177,10 +173,10 @@ main(void) {
     rightMotor.init();
 
 // Initialize the Periodic Samplig Timer
-    MX_TIM2_Init();
+    TIM2_Init();
 
 // 10DOF Sensor Initialization
-    MX_I2C1_Init();
+    I2C1_Init();
     bAHRSpresent = Sensors_Init();
 
 // 10DOF Sensor Position Initialization
@@ -218,10 +214,11 @@ main(void) {
     while(true) {
         if(bTxUartReady) {
             Madgwick.getRotation(&q0, &q1, &q2, &q3);
-            sprintf((char *)txBuffer, "Q0: %4d Q1: %4d Q2:%4d Q3: %4d Speed: %4d Time: %lu\n",
+            sprintf((char *)txBuffer, "Q0: %4d Q1: %4d Q2:%4d Q3: %4d Speed: %4d Time: %lu Total: %ld\n",
                     int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0),
                     int(pLeftControlledMotor->currentSpeed*100.0),
-                    HAL_GetTick());
+                    HAL_GetTick(),
+                    pLeftControlledMotor->getTotalMove());
             if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
                 HAL_TIM_Base_Stop_IT(&htim2);
                 Error_Handler();
@@ -248,7 +245,7 @@ main(void) {
 
 
 static void
-MX_I2C1_Init(void) {
+I2C1_Init(void) {
     hi2c1.Instance = I2C1;
     hi2c1.Init.ClockSpeed      = I2C_SPEEDCLOCK;
     hi2c1.Init.DutyCycle       = I2C_DUTYCYCLE_2;
@@ -266,7 +263,7 @@ MX_I2C1_Init(void) {
 
 
 static void
-MX_TIM2_Init(void) {
+TIM2_Init(void) {
     TIM_ClockConfigTypeDef sClockSourceConfig;
     TIM_MasterConfigTypeDef sMasterConfig;
     memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
@@ -311,8 +308,7 @@ MX_TIM2_Init(void) {
 
 
 static void
-MX_USART2_UART_Init(void) {
-
+USART2_UART_Init(void) {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
     // Enable GPIO TX/RX clock
@@ -407,7 +403,7 @@ MX_USART2_UART_Init(void) {
 
 
 static void
-MX_GPIO_Init(void) {
+GPIO_Init(void) {
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
 
