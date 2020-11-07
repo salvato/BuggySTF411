@@ -21,7 +21,7 @@
 #include "MadgwickAHRS.h"
 
 
-#define BAUD_RATE 9600
+#define BAUD_RATE      9600
 #define I2C_SPEEDCLOCK 400000 // Hz
 
 
@@ -211,12 +211,15 @@ main(void) {
     if(HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxBuffer, 255) != HAL_OK) {
         Error_Handler();
     }
+    float q0, q1, q2, q3;
     //=======================================================================
     //                                Main Loop
     //=======================================================================
     while(true) {
         if(bTxUartReady) {
-            sprintf((char *)txBuffer, "Speed: %4d Time: %lu\n",
+            Madgwick.getRotation(&q0, &q1, &q2, &q3);
+            sprintf((char *)txBuffer, "Q0: %4d Q1: %4d Q2:%4d Q3: %4d Speed: %4d Time: %lu\n",
+                    int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0),
                     int(pLeftControlledMotor->currentSpeed*100.0),
                     HAL_GetTick());
             if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
@@ -237,15 +240,6 @@ main(void) {
                 HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
             }
         }
-/*
-        UpdateRemote++;
-        UpdateRemote %= (samplingFrequency/20);
-        if(!UpdateRemote) {
-            Madgwick.getRotation(&q0, &q1, &q2, &q3);
-            sprintf((char *)sMessage, "q %d %d %d %d#", int(q0*1000), int(q1*1000) ,int(q2*1000), int(q3*1000));
-            result = HAL_UART_Transmit_DMA(&huart2, sMessage, strlen((char *)sMessage));
-        }
-*/
     } // while(true)
     //=======================================================================
     //                                 End Loop

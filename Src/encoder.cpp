@@ -10,6 +10,7 @@ const double CountsPerTurn = 12.0*9.0*4.0;
 
 Encoder::Encoder(TIM_TypeDef *_timer)
     : timer(_timer)
+    , total(0)
 {
 }
 
@@ -22,7 +23,9 @@ Encoder::start() {
 
 double
 Encoder::read() { // in Giri Motore
-    return double(int16_t(timer->CNT))/CountsPerTurn;
+    int16_t counts = int16_t(timer->CNT);
+    total += counts;
+    return double(counts)/CountsPerTurn;
 }
 
 
@@ -32,11 +35,32 @@ Encoder::reset() {
 }
 
 
+int32_t
+Encoder::readTotal() {
+    return total;
+}
+
+
+void
+Encoder::resetTotal() {
+    total = 0;
+}
+
+
+int32_t
+Encoder::readAndResetTotal() {
+    int32_t saveTotal = total;
+    total = 0;
+    return saveTotal;
+}
+
+
 double
 Encoder::readAndReset() { // in Giri Motore
-    double value = double(int16_t(timer->CNT))/CountsPerTurn;
+    int16_t counts = int16_t(timer->CNT);
+    total += counts;
     TIM1->CNT = 0;
-    return value;
+    return double(counts)/CountsPerTurn;
 }
 
 
