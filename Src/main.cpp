@@ -183,12 +183,12 @@ main(void) {
     if(bAHRSpresent)
         AHRS_Init_Position();
 
-    bTxUartReady = false;
-    sprintf((char *)txBuffer, "\n\n\nBuggySTF411 - Program Started\n");
-    if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
-        Error_Handler();
-    }
+//    bTxUartReady = false;
+//    sprintf((char *)txBuffer, "\n\n\nBuggySTF411 - Program Started\n");
+//    if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
+//        HAL_TIM_Base_Stop_IT(&htim2);
+//        Error_Handler();
+//    }
 
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  samplingFrequency);
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, samplingFrequency);
@@ -203,27 +203,28 @@ main(void) {
     bool oldStatus = bRun;
 // DMA is programmed for reception before starting the transmission, in order to
 // be sure DMA Rx is ready when counterpart will start transmitting
+    float q0, q1, q2, q3;
     bRxUartReady = false;
     if(HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxBuffer, 255) != HAL_OK) {
         Error_Handler();
     }
-    float q0, q1, q2, q3;
+    bTxUartReady = true;
     //=======================================================================
     //                                Main Loop
     //=======================================================================
     while(true) {
         if(bTxUartReady) {
             Madgwick.getRotation(&q0, &q1, &q2, &q3);
-            sprintf((char *)txBuffer, "Q0: %4d Q1: %4d Q2:%4d Q3: %4d Speed: %4d Time: %lu Total: %ld\n",
+            sprintf((char *)txBuffer, "%4d,%4d,%4d,%4d,%4d,%lu,%ld\n",
                     int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0),
                     int(pLeftControlledMotor->currentSpeed*100.0),
                     HAL_GetTick(),
                     pLeftControlledMotor->getTotalMove());
+            bTxUartReady = false;
             if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
                 HAL_TIM_Base_Stop_IT(&htim2);
                 Error_Handler();
             }
-            bTxUartReady = false;
         }
         if(bRun != oldStatus) {
             oldStatus = bRun;
