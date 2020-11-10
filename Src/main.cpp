@@ -58,11 +58,14 @@ ADXL345  Acc;      // 400KHz I2C Capable. Maximum Output Data Rate is 800 Hz
 ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
+static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
 TIM_HandleTypeDef samplingTimer;  // Samplig Timer
-uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
-//uint32_t samplingFrequency = 300; // Hz
+uint32_t motorSlowingSampler = 6;
+uint32_t samplingFrequency = 300; // Sampling Frequency [Hz]
+uint32_t motorSamplingFrequency = 300/motorSlowingSampler; // [Hz]
+uint32_t callNum = 0;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
@@ -190,8 +193,8 @@ main(void) {
 //        Error_Handler();
 //    }
 
-    pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  samplingFrequency);
-    pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, samplingFrequency);
+    pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
+    pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
 
     double targetSpeed = 2.0;
     HAL_TIM_Base_Start_IT(&samplingTimer);
@@ -203,7 +206,6 @@ main(void) {
     bool oldStatus = bRun;
 // DMA is programmed for reception before starting the transmission, in order to
 // be sure DMA Rx is ready when counterpart will start transmitting
-    float q0, q1, q2, q3;
     bRxUartReady = false;
     if(HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxBuffer, 255) != HAL_OK) {
         Error_Handler();
@@ -481,8 +483,11 @@ AHRS_Init_Position() {
 // This function handles TIM2 global interrupt.
 void
 TIM2_IRQHandler(void) {
-    if(pLeftControlledMotor)
-        pLeftControlledMotor->Update();
+    ++callNum;
+    callNum = callNum % motorSlowingSampler;
+    if(!callNum)
+        if(pLeftControlledMotor)
+            pLeftControlledMotor->Update();
     if(bAHRSpresent) {
         Acc.get_Gxyz(&AHRSvalues[0]);
         Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
