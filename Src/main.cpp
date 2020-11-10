@@ -60,9 +60,9 @@ HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 static volatile float AHRSvalues[9];
 
-TIM_HandleTypeDef samplingTimer;          // Samplig Timer
-//uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
-uint32_t samplingFrequency = 300; // Hz
+TIM_HandleTypeDef samplingTimer;  // Samplig Timer
+uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
+//uint32_t samplingFrequency = 300; // Hz
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
@@ -83,7 +83,7 @@ void SystemClock_Config(void);
 static void GPIO_Init(void);
 static void I2C1_Init(void);
 static void SamplingTimer_init(void);
-static void USART2_UART_Init(void);
+static void SerialPort_Init(void);
 
 static bool Sensors_Init();
 static void AHRS_Init_Position();
@@ -162,7 +162,7 @@ main(void) {
     GPIO_Init();
 
 // Initialize the Serial Communication Port (/dev/ttyACM0)
-    USART2_UART_Init();
+    SerialPort_Init();
 
     leftEncoder.init();
     leftEncoder.start();
@@ -309,7 +309,7 @@ SamplingTimer_init(void) {
 
 
 static void
-USART2_UART_Init(void) {
+SerialPort_Init(void) {
     GPIO_InitTypeDef  GPIO_InitStruct;
 
     // Enable GPIO TX/RX clock
