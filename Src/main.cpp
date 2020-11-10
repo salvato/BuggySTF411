@@ -60,7 +60,7 @@ HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 static volatile float AHRSvalues[9];
 
-TIM_HandleTypeDef htim2;          // Samplig Timer
+TIM_HandleTypeDef samplingTimer;          // Samplig Timer
 //uint32_t samplingFrequency = 100; // Sampling Frequency [Hz]
 uint32_t samplingFrequency = 300; // Hz
 
@@ -82,7 +82,7 @@ void SystemClock_Config(void);
 
 static void GPIO_Init(void);
 static void I2C1_Init(void);
-static void TIM2_Init(void);
+static void SamplingTimer_init(void);
 static void USART2_UART_Init(void);
 
 static bool Sensors_Init();
@@ -173,7 +173,7 @@ main(void) {
     rightMotor.init();
 
 // Initialize the Periodic Samplig Timer
-    TIM2_Init();
+    SamplingTimer_init();
 
 // 10DOF Sensor Initialization
     I2C1_Init();
@@ -186,7 +186,7 @@ main(void) {
 //    bTxUartReady = false;
 //    sprintf((char *)txBuffer, "\n\n\nBuggySTF411 - Program Started\n");
 //    if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
-//        HAL_TIM_Base_Stop_IT(&htim2);
+//        HAL_TIM_Base_Stop_IT(&samplingTimer);
 //        Error_Handler();
 //    }
 
@@ -194,7 +194,7 @@ main(void) {
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, samplingFrequency);
 
     double targetSpeed = 2.0;
-    HAL_TIM_Base_Start_IT(&htim2);
+    HAL_TIM_Base_Start_IT(&samplingTimer);
 
     // Enable and set Button EXTI Interrupt
     bRun = false;
@@ -222,7 +222,7 @@ main(void) {
                     HAL_GetTick());
             bTxUartReady = false;
             if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
-                HAL_TIM_Base_Stop_IT(&htim2);
+                HAL_TIM_Base_Stop_IT(&samplingTimer);
                 Error_Handler();
             }
         }
@@ -257,14 +257,14 @@ I2C1_Init(void) {
     hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
     hi2c1.Init.NoStretchMode   = I2C_NOSTRETCH_DISABLE;
     if(HAL_I2C_Init(&hi2c1) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 }
 
 
 static void
-TIM2_Init(void) {
+SamplingTimer_init(void) {
     TIM_ClockConfigTypeDef sClockSourceConfig;
     TIM_MasterConfigTypeDef sMasterConfig;
     memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
@@ -277,29 +277,29 @@ TIM2_Init(void) {
     // Prescaler value to have a 1MHz TIM2 Input Counter Clock
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/counterClock)-1;
 
-    htim2.Instance = TIM2;
-    htim2.Init.Prescaler         = uwPrescalerValue;
-    htim2.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    htim2.Init.Period            = (counterClock/samplingFrequency)-1; // (Sampling period) / (Clock Period)
-    htim2.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // tDTS=tCK_INT
-    htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    samplingTimer.Instance = TIM2;
+    samplingTimer.Init.Prescaler         = uwPrescalerValue;
+    samplingTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    samplingTimer.Init.Period            = (counterClock/samplingFrequency)-1; // (Sampling period) / (Clock Period)
+    samplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // tDTS=tCK_INT
+    samplingTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
 
-    if(HAL_TIM_Base_Init(&htim2) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+    if(HAL_TIM_Base_Init(&samplingTimer) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    if(HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+    if(HAL_TIM_ConfigClockSource(&samplingTimer, &sClockSourceConfig) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+    if(HAL_TIMEx_MasterConfigSynchronization(&samplingTimer, &sMasterConfig) != HAL_OK) {
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
@@ -338,7 +338,7 @@ USART2_UART_Init(void) {
     huart2.Init.Mode         = UART_MODE_TX_RX;
     huart2.Init.OverSampling = UART_OVERSAMPLING_16;
     if(HAL_UART_Init(&huart2) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
@@ -361,7 +361,7 @@ USART2_UART_Init(void) {
     hdma_usart2_tx.Init.MemBurst            = DMA_MBURST_INC4;
     hdma_usart2_tx.Init.PeriphBurst         = DMA_PBURST_INC4;
     if(HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 // Associate the initialized DMA handle to the the UART handle
@@ -382,7 +382,7 @@ USART2_UART_Init(void) {
     hdma_usart2_rx.Init.MemBurst            = DMA_MBURST_INC4;
     hdma_usart2_rx.Init.PeriphBurst         = DMA_PBURST_INC4;
     if(HAL_DMA_Init(&hdma_usart2_rx) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
     // Associate the initialized DMA handle to the the UART handle
@@ -492,8 +492,8 @@ TIM2_IRQHandler(void) {
                             AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
                             AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
     }
-    __HAL_TIM_CLEAR_IT(&htim2, TIM_IT_UPDATE);
-    //HAL_TIM_IRQHandler(&htim2);
+    __HAL_TIM_CLEAR_IT(&samplingTimer, TIM_IT_UPDATE);
+    //HAL_TIM_IRQHandler(&samplingTimer);
 }
 
 
@@ -580,7 +580,7 @@ SystemClock_Config(void) {
     RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV4;
     RCC_OscInitStruct.PLL.PLLQ            = 4;
     if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
@@ -594,7 +594,7 @@ SystemClock_Config(void) {
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
     if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&htim2);
+        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 }
