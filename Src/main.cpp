@@ -72,6 +72,11 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
 uint8_t txBuffer[255];
 uint8_t rxBuffer[255];
+uint8_t command[255];
+uint8_t inChar;
+volatile int rxBufferStart;
+volatile int rxBufferEnd;
+int rxBufferSize = 255;
 volatile bool bTxUartReady;
 volatile bool bRxUartReady;
 
@@ -207,7 +212,9 @@ main(void) {
 // DMA is programmed for reception before starting the transmission, in order to
 // be sure DMA Rx is ready when counterpart will start transmitting
     bRxUartReady = false;
-    if(HAL_UART_Receive_DMA(&huart2, (uint8_t *)rxBuffer, 255) != HAL_OK) {
+    rxBufferStart = 0;
+    rxBufferEnd = 0;
+    if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
         Error_Handler();
     }
     bTxUartReady = true;
@@ -228,6 +235,13 @@ main(void) {
                 Error_Handler();
             }
         }
+//        if(bRxUartReady) {
+//            bRxUartReady = false;
+//            if(HAL_UART_Transmit_DMA(&huart2, command, strlen((char *)command)) != HAL_OK) {
+//                HAL_TIM_Base_Stop_IT(&samplingTimer);
+//                Error_Handler();
+//            }
+//        }
         if(bRun != oldStatus) {
             oldStatus = bRun;
             if(!bRun) {
@@ -530,8 +544,22 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
 // UartHandle: UART handle
 void
 HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
-    (void)UartHandle;
-    bRxUartReady = true;
+    if(inChar == '\n') {
+        int i = 0;
+        int index = rxBufferStart;
+        while((index % rxBufferSize) != rxBufferEnd) {
+            command[i++] = rxBuffer[index++];
+        }
+        rxBufferEnd++;
+        rxBufferStart = rxBufferEnd;
+        bRxUartReady = true;
+        HAL_UART_Receive_DMA(UartHandle, &inChar, 1);
+    }
+    else {
+        rxBuffer[rxBufferEnd] = inChar;
+        rxBufferEnd++;
+        rxBufferEnd = rxBufferEnd % rxBufferSize;
+    }
 }
 
 
