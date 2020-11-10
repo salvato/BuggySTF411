@@ -218,8 +218,8 @@ main(void) {
             sprintf((char *)txBuffer, "%4d,%4d,%4d,%4d,%4d,%lu,%ld\n",
                     int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0),
                     int(pLeftControlledMotor->currentSpeed*100.0),
-                    HAL_GetTick(),
-                    pLeftControlledMotor->getTotalMove());
+                    long(pLeftControlledMotor->getTotalMove()),
+                    ulong(HAL_GetTick()));
             bTxUartReady = false;
             if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
                 HAL_TIM_Base_Stop_IT(&htim2);
