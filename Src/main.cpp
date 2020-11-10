@@ -227,8 +227,8 @@ main(void) {
             sprintf((char *)txBuffer, "%d,%d,%d,%d,%d,%ld,%lu\n",
                     int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0),
                     int(pLeftControlledMotor->currentSpeed*100.0),
-                    pLeftControlledMotor->getTotalMove(),
-                    HAL_GetTick());
+                    long(pLeftControlledMotor->getTotalMove()),
+                    ulong(HAL_GetTick()));
             bTxUartReady = false;
             if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
                 HAL_TIM_Base_Stop_IT(&samplingTimer);
@@ -511,7 +511,7 @@ TIM2_IRQHandler(void) {
                             AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
                             AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
     }
-    __HAL_TIM_CLEAR_IT(&samplingTimer, TIM_IT_UPDATE);
+    __HAL_TIM_CLEAR_IT(&samplingTimer, uint32_t(TIM_IT_UPDATE));
     //HAL_TIM_IRQHandler(&samplingTimer);
 }
 
