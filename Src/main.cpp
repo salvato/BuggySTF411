@@ -79,6 +79,7 @@ volatile int rxBufferEnd;
 int rxBufferSize = 255;
 volatile bool bTxUartReady;
 volatile bool bRxUartReady;
+volatile bool bRxComplete;
 
 volatile bool bRun;
 
@@ -214,6 +215,7 @@ main(void) {
     bRxUartReady = false;
     rxBufferStart = 0;
     rxBufferEnd = 0;
+    bRxComplete = false;
     if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
         Error_Handler();
     }
@@ -235,13 +237,20 @@ main(void) {
                 Error_Handler();
             }
         }
-//        if(bRxUartReady) {
-//            bRxUartReady = false;
-//            if(HAL_UART_Transmit_DMA(&huart2, command, strlen((char *)command)) != HAL_OK) {
-//                HAL_TIM_Base_Stop_IT(&samplingTimer);
-//                Error_Handler();
-//            }
-//        }
+        if(bRxUartReady) {
+            bRxUartReady = false;
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+                Error_Handler();
+            }
+        }
+        if(bRxComplete) {
+            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+            bRxComplete = false;
+            bRxUartReady = false;
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+                Error_Handler();
+            }
+        }
         if(bRun != oldStatus) {
             oldStatus = bRun;
             if(!bRun) {
@@ -544,6 +553,7 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
 // UartHandle: UART handle
 void
 HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
+    (void)UartHandle;
     if(inChar == '\n') {
         int i = 0;
         int index = rxBufferStart;
@@ -552,13 +562,13 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
         }
         rxBufferEnd++;
         rxBufferStart = rxBufferEnd;
-        bRxUartReady = true;
-        HAL_UART_Receive_DMA(UartHandle, &inChar, 1);
+        bRxComplete = true;
     }
     else {
         rxBuffer[rxBufferEnd] = inChar;
         rxBufferEnd++;
         rxBufferEnd = rxBufferEnd % rxBufferSize;
+        bRxUartReady = true;
     }
 }
 
