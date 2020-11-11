@@ -560,6 +560,7 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
         while((index % rxBufferSize) != rxBufferEnd) {
             command[i++] = rxBuffer[index++];
         }
+        command[i] = 0;
         rxBufferEnd++;
         rxBufferStart = rxBufferEnd;
         bRxComplete = true;
