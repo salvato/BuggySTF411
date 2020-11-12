@@ -96,6 +96,7 @@ static void SerialPort_Init(void);
 
 static bool Sensors_Init();
 static void AHRS_Init_Position();
+static void ExecCommand();
 
 
 //=========================================
@@ -246,6 +247,7 @@ main(void) {
         if(bRxComplete) {
             HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
             bRxComplete = false;
+            ExecCommand();
             bRxUartReady = false;
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
                 Error_Handler();
@@ -500,6 +502,25 @@ AHRS_Init_Position() {
                         AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
                         AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);// Mag
     }
+}
+
+
+void
+ExecCommand() {
+    if(command[0] == 'G') { // Go
+
+    }
+    else if(command[0] == 'H') { // Halt
+
+    }
+    else if(command[0] == 'L') { // Left Motor commands
+
+    }
+    else if(command[0] == 'L') { // Right Motor commands
+
+    }
+    return;
+
 }
 
 
