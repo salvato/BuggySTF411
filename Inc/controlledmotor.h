@@ -11,6 +11,9 @@ public:
     ControlledMotor(DcMotor* _pMotor, Encoder* _pEncoder, uint32_t samplingFrequency);
     void Update();
     void setTargetSpeed(double newSpeed);
+    void setP(double value);
+    void setI(double value);
+    void setD(double value);
     void Stop();
     int32_t getTotalMove();
 
@@ -29,4 +32,5 @@ private:
     double Kp;
     double Ki;
     double Kd;
+    int    POn;
 };

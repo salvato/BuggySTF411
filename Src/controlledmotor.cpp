@@ -8,6 +8,7 @@ ControlledMotor::ControlledMotor(DcMotor *_pMotor, Encoder *_pEncoder, uint32_t 
     , Kp(60.0)
     , Ki(16.0)
     , Kd(0.0)
+    , POn(P_ON_E)
 {
     output       = 0.0;
     currentSpeed = 0.0;
@@ -37,11 +38,33 @@ ControlledMotor::setTargetSpeed(double newSpeed) {
 
 
 void
+ControlledMotor::setP(double value) {
+    Kp = value;
+    pPID->SetTunings(Kp, Ki, Kd, POn);
+}
+
+
+void
+ControlledMotor::setI(double value){
+    Ki = value;
+    pPID->SetTunings(Kp, Ki, Kd, POn);
+}
+
+
+void
+ControlledMotor::setD(double value){
+    Kd = value;
+    pPID->SetTunings(Kp, Ki, Kd, POn);
+}
+
+
+void
 ControlledMotor::Stop() {
     pMotor->stop();
     setpoint = 0.0;
     pPID->SetMode(MANUAL);
 }
+
 
 int32_t
 ControlledMotor::getTotalMove() {

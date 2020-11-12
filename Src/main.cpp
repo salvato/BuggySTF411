@@ -203,14 +203,12 @@ main(void) {
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
 
-    double targetSpeed = 2.0;
     HAL_TIM_Base_Start_IT(&samplingTimer);
 
     // Enable and set Button EXTI Interrupt
     bRun = false;
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
-    bool oldStatus = bRun;
 // DMA is programmed for reception before starting the transmission, in order to
 // be sure DMA Rx is ready when counterpart will start transmitting
     bRxUartReady = false;
@@ -251,18 +249,6 @@ main(void) {
             bRxUartReady = false;
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
                 Error_Handler();
-            }
-        }
-        if(bRun != oldStatus) {
-            oldStatus = bRun;
-            if(!bRun) {
-                pLeftControlledMotor->Stop();
-                HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-            }
-            else {
-                targetSpeed = -targetSpeed;
-                pLeftControlledMotor->setTargetSpeed(targetSpeed);
-                HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
             }
         }
     } // while(true)
@@ -507,17 +493,60 @@ AHRS_Init_Position() {
 
 void
 ExecCommand() {
+    int commandLen = strlen((const char*)(&command[0]));
     if(command[0] == 'G') { // Go
 
     }
     else if(command[0] == 'H') { // Halt
 
     }
+    if(commandLen < 3) // At least 3 characters are needed
+        return;
     else if(command[0] == 'L') { // Left Motor commands
+        if(command[1] == 's') { // New Speed
+            double newSpeed;
+            sscanf((const char*)(&command[2]), "%lf", &newSpeed);
+            pLeftControlledMotor->setTargetSpeed(newSpeed/100.0);
 
+        }
+        else if(command[1] == 'p') { // New Proportional PID value
+            double newValue;
+            sscanf((const char*)(&command[2]), "%lf", &newValue);
+            pLeftControlledMotor->setP(newValue/100.0);
+        }
+        else if(command[1] == 'i') { // New Integral PID value
+            double newValue;
+            sscanf((const char*)(&command[2]), "%lf", &newValue);
+            pLeftControlledMotor->setI(newValue/100.0);
+        }
+        else if(command[1] == 'd') { // New Differential PID value
+            double newValue;
+            sscanf((const char*)(&command[2]), "%lf", &newValue);
+            pLeftControlledMotor->setD(newValue/100.0);
+        }
     }
-    else if(command[0] == 'L') { // Right Motor commands
+    else if(command[0] == 'R') { // Right Motor commands
+        if(command[1] == 's') { // New Speed
+            double newSpeed;
+            sscanf((const char*)(&command[2]), "%lf", &newSpeed);
+            pRightControlledMotor->setTargetSpeed(newSpeed/100.0);
 
+        }
+        else if(command[1] == 'p') { // New Proportional PID value
+            double newValue;
+            sscanf((const char*)(&command[2]), "%lf", &newValue);
+            pRightControlledMotor->setP(newValue/100.0);
+        }
+        else if(command[1] == 'i') { // New Integral PID value
+            double newValue;
+            sscanf((const char*)(&command[2]), "%lf", &newValue);
+            pRightControlledMotor->setI(newValue/100.0);
+        }
+        else if(command[1] == 'd') { // New Differential PID value
+            double newValue;
+            sscanf((const char*)(&command[2]), "%lf", &newValue);
+            pRightControlledMotor->setD(newValue/100.0);
+        }
     }
     return;
 
