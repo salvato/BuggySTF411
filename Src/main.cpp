@@ -493,60 +493,44 @@ AHRS_Init_Position() {
 
 void
 ExecCommand() {
-    int commandLen = strlen((const char*)(&command[0]));
     if(command[0] == 'G') { // Go
-
+        return;
     }
     else if(command[0] == 'H') { // Halt
-
-    }
-    if(commandLen < 3) // At least 3 characters are needed
         return;
-    else if(command[0] == 'L') { // Left Motor commands
-        if(command[1] == 's') { // New Speed
-            double newSpeed;
-            sscanf((const char*)(&command[2]), "%lf", &newSpeed);
-            pLeftControlledMotor->setTargetSpeed(newSpeed/100.0);
-
-        }
-        else if(command[1] == 'p') { // New Proportional PID value
-            double newValue;
-            sscanf((const char*)(&command[2]), "%lf", &newValue);
-            pLeftControlledMotor->setP(newValue/100.0);
-        }
-        else if(command[1] == 'i') { // New Integral PID value
-            double newValue;
-            sscanf((const char*)(&command[2]), "%lf", &newValue);
-            pLeftControlledMotor->setI(newValue/100.0);
-        }
-        else if(command[1] == 'd') { // New Differential PID value
-            double newValue;
-            sscanf((const char*)(&command[2]), "%lf", &newValue);
-            pLeftControlledMotor->setD(newValue/100.0);
-        }
     }
-    else if(command[0] == 'R') { // Right Motor commands
-        if(command[1] == 's') { // New Speed
-            double newSpeed;
-            sscanf((const char*)(&command[2]), "%lf", &newSpeed);
-            pRightControlledMotor->setTargetSpeed(newSpeed/100.0);
+    int commandLen = strlen((const char*)(&command[0]));
+    if(commandLen < 3)
+        return; // At least 3 characters are needed
 
-        }
-        else if(command[1] == 'p') { // New Proportional PID value
-            double newValue;
-            sscanf((const char*)(&command[2]), "%lf", &newValue);
-            pRightControlledMotor->setP(newValue/100.0);
-        }
-        else if(command[1] == 'i') { // New Integral PID value
-            double newValue;
-            sscanf((const char*)(&command[2]), "%lf", &newValue);
-            pRightControlledMotor->setI(newValue/100.0);
-        }
-        else if(command[1] == 'd') { // New Differential PID value
-            double newValue;
-            sscanf((const char*)(&command[2]), "%lf", &newValue);
-            pRightControlledMotor->setD(newValue/100.0);
-        }
+    ControlledMotor* pDestinationMotor;
+    if(command[0] == 'L') // Left Motor commands
+        pDestinationMotor = pLeftControlledMotor;
+    else if(command[0] == 'R') // Right Motor commands
+        pDestinationMotor = pRightControlledMotor;
+    else
+        return; // Command Error !
+
+    if(command[1] == 's') { // New Speed
+        double newSpeed;
+        sscanf((const char*)(&command[2]), "%lf", &newSpeed);
+        pDestinationMotor->setTargetSpeed(newSpeed);
+
+    }
+    else if(command[1] == 'p') { // New Proportional PID value
+        double newValue;
+        sscanf((const char*)(&command[2]), "%lf", &newValue);
+        pDestinationMotor->setP(newValue);
+    }
+    else if(command[1] == 'i') { // New Integral PID value
+        double newValue;
+        sscanf((const char*)(&command[2]), "%lf", &newValue);
+        pDestinationMotor->setI(newValue);
+    }
+    else if(command[1] == 'd') { // New Differential PID value
+        double newValue;
+        sscanf((const char*)(&command[2]), "%lf", &newValue);
+        pDestinationMotor->setD(newValue);
     }
     return;
 }
