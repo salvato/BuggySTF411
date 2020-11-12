@@ -499,6 +499,7 @@ ExecCommand() {
     else if(command[0] == 'H') { // Halt
         return;
     }
+
     int commandLen = strlen((const char*)(&command[0]));
     if(commandLen < 3)
         return; // At least 3 characters are needed
@@ -507,7 +508,8 @@ ExecCommand() {
     if(command[0] == 'L') // Left Motor commands
         pDestinationMotor = pLeftControlledMotor;
     else if(command[0] == 'R') // Right Motor commands
-        pDestinationMotor = pRightControlledMotor;
+        return; // <<<<<<<<<<<<<<<<<<<<<<<<<<<========================= No Right Motor at Present
+        //pDestinationMotor = pRightControlledMotor;
     else
         return; // Command Error !
 
