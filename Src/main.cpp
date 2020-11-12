@@ -520,18 +520,18 @@ ExecCommand() {
 
     }
     else if(command[1] == 'p') { // New Proportional PID value
-        double newValue;
-        sscanf((const char*)(&command[2]), "%lf", &newValue);
+        int newValue;
+        sscanf((const char*)(&command[2]), "%d", &newValue);
         pDestinationMotor->setP(newValue);
     }
     else if(command[1] == 'i') { // New Integral PID value
-        double newValue;
-        sscanf((const char*)(&command[2]), "%lf", &newValue);
+        int newValue;
+        sscanf((const char*)(&command[2]), "%d", &newValue);
         pDestinationMotor->setI(newValue);
     }
     else if(command[1] == 'd') { // New Differential PID value
-        double newValue;
-        sscanf((const char*)(&command[2]), "%lf", &newValue);
+        int newValue;
+        sscanf((const char*)(&command[2]), "%d", &newValue);
         pDestinationMotor->setD(newValue);
     }
     return;
