@@ -224,6 +224,33 @@ Init() {
         Error_Handler();
     }
     bRun = false;
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    strcpy((char *)txBuffer, "Buggy Ready\n");
+    while(!bRun) {
+        if(bTxUartReady) {
+            bTxUartReady = false;
+            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
+                Error_Handler();
+            }
+        }
+        if(bRxUartReady) {
+            bRxUartReady = false;
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+                Error_Handler();
+            }
+        }
+        if(bRxComplete) {
+            bRxComplete = false;
+            bRxUartReady = false;
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+                Error_Handler();
+            }
+            if(command[0] == 'G') { // Go
+                bRun = true;
+            }
+        }
+    }
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 }
 
 
@@ -274,7 +301,7 @@ Loop() {
                 Error_Handler();
             }
         }
-        if(bChangeSpeed) {
+        if(bChangeSpeed & bRun) {
             bChangeSpeed = false;
             ts = 1-ts;
             pLeftControlledMotor->setTargetSpeed(1.0+3*ts);
@@ -485,9 +512,12 @@ AHRS_Init_Position() {
 void
 ExecCommand() {
     if(command[0] == 'G') { // Go
+        bRun = true;
         return;
     }
     else if(command[0] == 'H') { // Halt
+        bRun = false;
+        pLeftControlledMotor->setTargetSpeed(0.0);
         return;
     }
 
