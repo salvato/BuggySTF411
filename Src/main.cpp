@@ -1,4 +1,6 @@
-// To configure QtCreator so to Debug and Run programs on STM32F boards see:
+// To configure QtCreator in order to Debug and Run programs
+// on STM32F boards see:
+//
 // https://github.com/nlhans/qt-baremetal
 // https://electronics.stackexchange.com/questions/212018/debugging-an-arm-stm32-microcontroller-using-qt-creator
 //
@@ -9,16 +11,16 @@
 
 #include "main.h"
 #include "utility.h"
-#include "string.h" // for memset()
-#include "stdio.h"
 #include "encoder.h"
 #include "dcmotor.h"
 #include "PID_v1.h"
 #include "controlledmotor.h"
-#include <ADXL345.h>
-#include <ITG3200.h>
-#include <HMC5883L.h>
+#include "ADXL345.h"
+#include "ITG3200.h"
+#include "HMC5883L.h"
 #include "MadgwickAHRS.h"
+#include "string.h" // for memset()
+#include "stdio.h"
 
 
 #define BAUD_RATE      9600
@@ -58,29 +60,33 @@ ADXL345  Acc;      // 400KHz I2C Capable. Maximum Output Data Rate is 800 Hz
 ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
+
 static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
-TIM_HandleTypeDef samplingTimer;  // Samplig Timer
+TIM_HandleTypeDef samplingTimer; // Samplig Timer
 uint32_t motorSlowingSampler    = 6;
 uint32_t samplingFrequency      = 300;                     // Sampling Frequency [Hz]
 uint32_t motorSamplingFrequency = 300/motorSlowingSampler; // [Hz]
+
 uint32_t callsNumber  = 0;
 uint32_t callsNumber2 = 0;
+
 bool bSendAHRS    = false;
 bool bSendMotors  = false;
 bool bChangeSpeed = false;
 
 UART_HandleTypeDef huart2;
-DMA_HandleTypeDef hdma_usart2_tx;
-DMA_HandleTypeDef hdma_usart2_rx;
-uint8_t txBuffer[255];
+DMA_HandleTypeDef  hdma_usart2_tx;
+DMA_HandleTypeDef  hdma_usart2_rx;
+int     rxBufferSize = 255;
 uint8_t rxBuffer[255];
+uint8_t txBuffer[255];
 uint8_t command[255];
 uint8_t inChar;
+
 volatile int rxBufferStart;
 volatile int rxBufferEnd;
-int rxBufferSize = 255;
 volatile bool bTxUartReady;
 volatile bool bRxUartReady;
 volatile bool bRxComplete;
@@ -91,8 +97,8 @@ volatile bool bRun;
 //====================================
 // Private function prototypes
 //====================================
-static void SystemClock_Config(void);
-static void GPIO_Init(void);
+static void Init();
+static void Loop();
 static void I2C1_Init(void);
 static void SamplingTimer_init(void);
 static void SerialPort_Init(void);
@@ -169,14 +175,20 @@ static void ExecCommand();
 
 int
 main(void) {
+    Init();
+    Loop();
+}
+
+
+static void
+Init() {
     HAL_Init();
     SystemClock_Config();
-
+// Initialize On Board Peripherals
     GPIO_Init();
-
 // Initialize the Serial Communication Port (/dev/ttyACM0)
     SerialPort_Init();
-
+// Initialize Motors and relative Encoders
     leftEncoder.init();
     leftEncoder.start();
     leftMotor.init();
@@ -184,49 +196,42 @@ main(void) {
     rightEncoder.init();
     rightEncoder.start();
     rightMotor.init();
-
 // Initialize the Periodic Samplig Timer
     SamplingTimer_init();
-
 // 10DOF Sensor Initialization
     I2C1_Init();
     bAHRSpresent = Sensors_Init();
-
 // 10DOF Sensor Position Initialization
     if(bAHRSpresent)
         AHRS_Init_Position();
-
-//    bTxUartReady = false;
-//    sprintf((char *)txBuffer, "\n\n\nBuggySTF411 - Program Started\n");
-//    if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
-//        HAL_TIM_Base_Stop_IT(&samplingTimer);
-//        Error_Handler();
-//    }
-
+// Initialize Motor Controllers
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
-
+// Start the Periodic Sampling of AHRS and Motors
     HAL_TIM_Base_Start_IT(&samplingTimer);
-
-    // Enable and set Button EXTI Interrupt
-    bRun = false;
+// Enable and set Button EXTI Interrupt
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
 // DMA is programmed for reception before starting the transmission, in order to
 // be sure DMA Rx is ready when counterpart will start transmitting
-    bRxUartReady = false;
     rxBufferStart = 0;
-    rxBufferEnd = 0;
-    bRxComplete = false;
+    rxBufferEnd   = 0;
+    bTxUartReady  = true;
+    bRxComplete   = false;
+    bRxUartReady  = false;
     if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
         Error_Handler();
     }
-    bTxUartReady = true;
+    bRun = false;
+}
+
+
+//=======================================================================
+//                                Main Loop
+//=======================================================================
+static void
+Loop() {
     int ts = 0;
     pLeftControlledMotor->setTargetSpeed(2.0+ts);
-    //=======================================================================
-    //                                Main Loop
-    //=======================================================================
     while(true) {
         if(bTxUartReady) {
             int len= 0;
@@ -274,10 +279,10 @@ main(void) {
 
         }
     } // while(true)
-    //=======================================================================
-    //                                 End Loop
-    //=======================================================================
 }
+//=======================================================================
+//                                 End Loop
+//=======================================================================
 
 
 static void
@@ -292,7 +297,6 @@ I2C1_Init(void) {
     hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
     hi2c1.Init.NoStretchMode   = I2C_NOSTRETCH_DISABLE;
     if(HAL_I2C_Init(&hi2c1) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 }
@@ -321,20 +325,17 @@ SamplingTimer_init(void) {
 
 
     if(HAL_TIM_Base_Init(&samplingTimer) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
     if(HAL_TIM_ConfigClockSource(&samplingTimer, &sClockSourceConfig) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
     if(HAL_TIMEx_MasterConfigSynchronization(&samplingTimer, &sMasterConfig) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
@@ -373,7 +374,6 @@ SerialPort_Init(void) {
     huart2.Init.Mode         = UART_MODE_TX_RX;
     huart2.Init.OverSampling = UART_OVERSAMPLING_16;
     if(HAL_UART_Init(&huart2) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 
@@ -396,7 +396,6 @@ SerialPort_Init(void) {
     hdma_usart2_tx.Init.MemBurst            = DMA_MBURST_INC4;
     hdma_usart2_tx.Init.PeriphBurst         = DMA_PBURST_INC4;
     if(HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
 // Associate the initialized DMA handle to the the UART handle
@@ -417,7 +416,6 @@ SerialPort_Init(void) {
     hdma_usart2_rx.Init.MemBurst            = DMA_MBURST_INC4;
     hdma_usart2_rx.Init.PeriphBurst         = DMA_PBURST_INC4;
     if(HAL_DMA_Init(&hdma_usart2_rx) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
         Error_Handler();
     }
     // Associate the initialized DMA handle to the the UART handle
@@ -438,54 +436,25 @@ SerialPort_Init(void) {
 }
 
 
-static void
-GPIO_Init(void) {
-    GPIO_InitTypeDef GPIO_InitStruct;
-    memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_GPIOH_CLK_ENABLE();
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-    GPIO_InitStruct.Pin  = B1_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-    HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
-
-    GPIO_InitStruct.Pin   = LD2_Pin;
-    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull  = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
-}
-
-
 bool
 Sensors_Init() {
-    // Accelerator Init
+// Accelerator Init
     if(!Acc.init(ADXL345_ADDR_ALT_LOW, &hi2c1))
         return false;
     Acc.setRangeSetting(2); // +/- 2g. Possible values are: 2g, 4g, 8g, 16g
-
-    // Gyroscope Init
+// Gyroscope Init
     if(!Gyro.init(ITG3200_ADDR_AD0_LOW, &hi2c1))
         return false;
     HAL_Delay(100);
     Gyro.zeroCalibrate(600); // calibrate the ITG3200
-
-    // Magnetometer Init
+// Magnetometer Init
     if(!Magn.init(HMC5883L_Address, &hi2c1))
         return false;
     HAL_Delay(100);
     if(Magn.SetScale(1300) != 0)
         return false;
     HAL_Delay(100);
-
-    // Set the measurement mode to Continuous
+// Set the measurement mode to Continuous
     if(Magn.SetMeasurementMode(Measurement_Continuous) != 0)
         return false;
     return true;
@@ -495,16 +464,14 @@ Sensors_Init() {
 void
 AHRS_Init_Position() {
     Madgwick.begin(float(samplingFrequency));
-
-    // Get the first Sensor data
+// Get the first Sensor data
     while(!Acc.getInterruptSource(7)) {}
     Acc.get_Gxyz(&AHRSvalues[0]);
     while(!Gyro.isRawDataReadyOn()) {}
     Gyro.readGyro(&AHRSvalues[3]);
     while(!Magn.isDataReady()) {}
     Magn.ReadScaledAxis(&AHRSvalues[6]);
-
-    // Initial estimate of the attitude (assumed a static sensor !)
+// Initial estimate of the attitude (assumed a static sensor !)
     for(int i=0; i<10000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
         Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5], // Gyro in degrees/sec
                         AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
@@ -560,9 +527,9 @@ ExecCommand() {
 }
 
 
-// This function handles TIM2 global interrupt.
+// To handle the TIM2 (Periodic Sampler) interrupt.
 void
-TIM2_IRQHandler(void) {
+TIM2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     ++callsNumber2;
     callsNumber2 = callsNumber2 % 1200;
     if(callsNumber2)
@@ -593,7 +560,7 @@ TIM2_IRQHandler(void) {
 
 // This function handles EXTI line[15:10] interrupts.
 void
-EXTI15_10_IRQHandler(void) {
+EXTI15_10_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_GPIO_EXTI_IRQHandler(B1_Pin);
 }
 
@@ -656,7 +623,7 @@ USART2_DMA_RX_IRQHandler(void) {
 
 // This function handles USART2 interrupt request.
 void
-USART2_IRQHandler(void) {
+USART2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_UART_IRQHandler(&huart2);
 }
 
@@ -667,46 +634,6 @@ void
 HAL_UART_ErrorCallback(UART_HandleTypeDef *UartHandle) {
     (void)UartHandle;
     Error_Handler();
-}
-
-
-void
-SystemClock_Config(void) {
-    RCC_OscInitTypeDef RCC_OscInitStruct;
-    RCC_ClkInitTypeDef RCC_ClkInitStruct;
-    memset(&RCC_OscInitStruct, 0, sizeof(RCC_OscInitStruct));
-    memset(&RCC_ClkInitStruct, 0, sizeof(RCC_ClkInitStruct));
-
-    __HAL_RCC_PWR_CLK_ENABLE();
-    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-    RCC_OscInitStruct.OscillatorType      = RCC_OSCILLATORTYPE_HSI;
-    RCC_OscInitStruct.HSIState            = RCC_HSI_ON;
-    RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-    RCC_OscInitStruct.PLL.PLLState        = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource       = RCC_PLLSOURCE_HSI;
-    RCC_OscInitStruct.PLL.PLLM            = 16;
-    RCC_OscInitStruct.PLL.PLLN            = 336;
-    RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV4;
-    RCC_OscInitStruct.PLL.PLLQ            = 4;
-    if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
-        Error_Handler();
-    }
-
-    RCC_ClkInitStruct.ClockType      = RCC_CLOCKTYPE_HCLK   |
-                                       RCC_CLOCKTYPE_SYSCLK |
-                                       RCC_CLOCKTYPE_PCLK1  |
-                                       RCC_CLOCKTYPE_PCLK2;
-    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK;
-    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
-
-    if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
-        HAL_TIM_Base_Stop_IT(&samplingTimer);
-        Error_Handler();
-    }
 }
 
 

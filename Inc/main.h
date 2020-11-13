@@ -6,9 +6,6 @@ extern "C" {
 
 #include "stm32f4xx_hal.h"
 
-#define B1_Pin             GPIO_PIN_13
-#define B1_GPIO_Port       GPIOC
-
 #define USART_RX_Pin       GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
 #define USART_TX_Pin       GPIO_PIN_2
@@ -18,11 +15,7 @@ extern "C" {
 #define USART2_DMA_RX_IRQHandler DMA1_Stream5_IRQHandler
 #define USART2_DMA_TX_IRQn       DMA1_Stream6_IRQn
 #define USART2_DMA_TX_IRQHandler DMA1_Stream6_IRQHandler
-#
-#define LD2_Pin            GPIO_PIN_5
-#define LD2_GPIO_Port      GPIOA
 
-void Error_Handler(void);
 
 void TIM2_IRQHandler(void);
 void EXTI15_10_IRQHandler(void);

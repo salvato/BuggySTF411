@@ -23,10 +23,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
 #include "HMC5883L.h"
+#include "utility.h"
 #include <array>
-#include "main.h"
-
-extern void Error_Handler(void);
 
 
 #define NoError         0
