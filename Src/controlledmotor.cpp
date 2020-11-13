@@ -5,9 +5,9 @@ ControlledMotor::ControlledMotor(DcMotor *_pMotor, Encoder *_pEncoder, uint32_t 
     : pMotor(_pMotor)
     , pEncoder(_pEncoder)
     , sampleTime(1.0/double(samplingFrequency))// in sec.
-    , Kp(60.0)
-    , Ki(16.0)
-    , Kd(0.0)
+    , Kp(65.0)
+    , Ki(40.0)
+    , Kd(1.0)
     , POn(P_ON_E)
 {
     output       = 0.0;

@@ -271,7 +271,7 @@ main(void) {
         if(bChangeSpeed) {
             bChangeSpeed = false;
             ts = 1-ts;
-            pLeftControlledMotor->setTargetSpeed(2.0+ts);
+            pLeftControlledMotor->setTargetSpeed(1.0+3*ts);
 
         }
     } // while(true)
@@ -565,7 +565,7 @@ ExecCommand() {
 void
 TIM2_IRQHandler(void) {
     ++callsNumber2;
-    callsNumber2 = callsNumber2 % 600;
+    callsNumber2 = callsNumber2 % 1200;
     if(callsNumber2)
         bChangeSpeed = true;
 
