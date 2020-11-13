@@ -65,8 +65,10 @@ TIM_HandleTypeDef samplingTimer;  // Samplig Timer
 uint32_t motorSlowingSampler    = 6;
 uint32_t samplingFrequency      = 300;                     // Sampling Frequency [Hz]
 uint32_t motorSamplingFrequency = 300/motorSlowingSampler; // [Hz]
-uint32_t callsNumber = 0;
+uint32_t callsNumber  = 0;
 uint32_t callsNumber2 = 0;
+bool bSendAHRS    = false;
+bool bSendMotors  = false;
 bool bChangeSpeed = false;
 
 UART_HandleTypeDef huart2;
@@ -228,16 +230,27 @@ main(void) {
     //=======================================================================
     while(true) {
         if(bTxUartReady) {
-            Madgwick.getRotation(&q0, &q1, &q2, &q3);
-            sprintf((char *)txBuffer, "%d,%d,%d,%d,%d,%ld,%lu\n",
-                    int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0),
-                    int(pLeftControlledMotor->currentSpeed*100.0),
-                    long(pLeftControlledMotor->getTotalMove()),
-                    static_cast<unsigned long>(HAL_GetTick()));
-            bTxUartReady = false;
-            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
-                HAL_TIM_Base_Stop_IT(&samplingTimer);
-                Error_Handler();
+            int len= 0;
+            if(bSendAHRS) {
+                bSendAHRS = false;
+                Madgwick.getRotation(&q0, &q1, &q2, &q3);
+                len = sprintf((char *)txBuffer, "A,%d,%d,%d,%d",
+                              int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0));
+            }
+            if(bSendMotors) {
+                bSendMotors = false;
+                len += sprintf((char *)&txBuffer[len], ",M,%d,%ld",
+                                  int(pLeftControlledMotor->currentSpeed*100.0),
+                                  long(pLeftControlledMotor->getTotalMove()));
+            }
+            if(len > 0) {
+                sprintf((char *)&txBuffer[len], ",T%lu\n",
+                        static_cast<unsigned long>(HAL_GetTick()));
+                bTxUartReady = false;
+                if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
+                    HAL_TIM_Base_Stop_IT(&samplingTimer);
+                    Error_Handler();
+                }
             }
         }
         if(bRxUartReady) {
@@ -555,11 +568,15 @@ TIM2_IRQHandler(void) {
     callsNumber2 = callsNumber2 % 600;
     if(callsNumber2)
         bChangeSpeed = true;
+
     ++callsNumber;
     callsNumber = callsNumber % motorSlowingSampler;
-    if(!callsNumber)
+    if(!callsNumber) {
         if(pLeftControlledMotor)
             pLeftControlledMotor->Update();
+        bSendMotors = true;
+    }
+
     if(bAHRSpresent) {
         Acc.get_Gxyz(&AHRSvalues[0]);
         Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
@@ -568,6 +585,7 @@ TIM2_IRQHandler(void) {
             Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
                             AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
                             AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
+        bSendAHRS = true;
     }
     __HAL_TIM_CLEAR_IT(&samplingTimer, uint32_t(TIM_IT_UPDATE));
     //HAL_TIM_IRQHandler(&samplingTimer);
