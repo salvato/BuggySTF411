@@ -182,17 +182,19 @@ main(void) {
 
 static void
 Init() {
+// Initialize the HAL Library
     HAL_Init();
+// Initialize System Clock
     SystemClock_Config();
 // Initialize On Board Peripherals
     GPIO_Init();
 // Initialize the Serial Communication Port (/dev/ttyACM0)
     SerialPort_Init();
-// Initialize Motors and relative Encoders
+// Initialize Left Motor and relative Encoder
     leftEncoder.init();
     leftEncoder.start();
     leftMotor.init();
-
+// Initialize Right Motor and relative Encoder
     rightEncoder.init();
     rightEncoder.start();
     rightMotor.init();
