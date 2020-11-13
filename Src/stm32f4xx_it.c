@@ -1,9 +1,5 @@
-
 #include "main.h"
 #include "stm32f4xx_it.h"
-
-extern DMA_HandleTypeDef hdma_usart2_tx;
-extern DMA_HandleTypeDef hdma_usart2_rx;
 
 
 //*****************************************************************************

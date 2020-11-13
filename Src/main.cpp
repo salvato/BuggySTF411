@@ -91,8 +91,7 @@ volatile bool bRun;
 //====================================
 // Private function prototypes
 //====================================
-void SystemClock_Config(void);
-
+static void SystemClock_Config(void);
 static void GPIO_Init(void);
 static void I2C1_Init(void);
 static void SamplingTimer_init(void);
