@@ -244,8 +244,8 @@ main(void) {
                                   long(pLeftControlledMotor->getTotalMove()));
             }
             if(len > 0) {
-                sprintf((char *)&txBuffer[len], ",T%lu\n",
-                        static_cast<unsigned long>(HAL_GetTick()));
+                len += sprintf((char *)&txBuffer[len], ",T%lu\n",
+                               static_cast<unsigned long>(HAL_GetTick()));
                 bTxUartReady = false;
                 if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
                     HAL_TIM_Base_Stop_IT(&samplingTimer);
