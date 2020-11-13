@@ -62,10 +62,12 @@ static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
 TIM_HandleTypeDef samplingTimer;  // Samplig Timer
-uint32_t motorSlowingSampler = 6;
-uint32_t samplingFrequency = 300; // Sampling Frequency [Hz]
+uint32_t motorSlowingSampler    = 6;
+uint32_t samplingFrequency      = 300;                     // Sampling Frequency [Hz]
 uint32_t motorSamplingFrequency = 300/motorSlowingSampler; // [Hz]
-uint32_t callNum = 0;
+uint32_t callsNumber = 0;
+uint32_t callsNumber2 = 0;
+bool bChangeSpeed = false;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
@@ -219,6 +221,8 @@ main(void) {
         Error_Handler();
     }
     bTxUartReady = true;
+    int ts = 0;
+    pLeftControlledMotor->setTargetSpeed(2.0+ts);
     //=======================================================================
     //                                Main Loop
     //=======================================================================
@@ -250,6 +254,12 @@ main(void) {
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
                 Error_Handler();
             }
+        }
+        if(bChangeSpeed) {
+            bChangeSpeed = false;
+            ts = 1-ts;
+            pLeftControlledMotor->setTargetSpeed(2.0+ts);
+
         }
     } // while(true)
     //=======================================================================
@@ -541,9 +551,13 @@ ExecCommand() {
 // This function handles TIM2 global interrupt.
 void
 TIM2_IRQHandler(void) {
-    ++callNum;
-    callNum = callNum % motorSlowingSampler;
-    if(!callNum)
+    ++callsNumber2;
+    callsNumber2 = callsNumber2 % 600;
+    if(callsNumber2)
+        bChangeSpeed = true;
+    ++callsNumber;
+    callsNumber = callsNumber % motorSlowingSampler;
+    if(!callsNumber)
         if(pLeftControlledMotor)
             pLeftControlledMotor->Update();
     if(bAHRSpresent) {
@@ -560,7 +574,7 @@ TIM2_IRQHandler(void) {
 }
 
 
-//  * @brief This function handles EXTI line[15:10] interrupts.
+// This function handles EXTI line[15:10] interrupts.
 void
 EXTI15_10_IRQHandler(void) {
     HAL_GPIO_EXTI_IRQHandler(B1_Pin);
