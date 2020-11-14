@@ -9,6 +9,71 @@
 //
 // Motor Gear 9:1
 
+//=========================================
+// On Board Peripherals
+//=========================================
+// PA5  (CN10 11)   ------> Led On Board
+// PC13 (CN7  23)   ------> Button On Board
+
+
+//===================================
+// USART2 GPIO Configuration
+//===================================
+// GND (CN10 20)    ------> GND
+// PA2 (CN10 35)    ------> USART2_TX
+// PA3 (CN10 37)    ------> USART2_RX
+
+
+//==================================
+// I2C1 GPIO Configuration
+//==================================
+// VIN (CN7  16)    ------> +3.3V
+// GND (CN7  20)    ------> GND
+// PB8 (CN10  3)    ------> I2C1_SCL
+// PB9 (CN10  5)    ------> I2C1_SDA
+
+
+//================================================
+// TIM1 (32 Bit) GPIO Configuration (Left Encoder)
+//================================================
+// PA8 (CN10 21)    ------> TIM1_CH1
+// PA9 (CN10 23)    ------> TIM1_CH2
+
+
+//=================================================
+// TIM4 (32 Bit) GPIO Configuration (Right Encoder)
+//=================================================
+// PB6 (CN10 17)    ------> TIM4_CH1
+// PB7 (CN7  21)    ------> TIM4_CH2
+
+
+//=============================================
+// TIM2 GPIO Configuration (Periodic Interrupt)
+//=============================================
+// No GPIO used
+
+
+//==================================
+// TIM3 GPIO Configuration (PWM)
+//==================================
+// PA6 (CN10 13)    ------> TIM3_CH1
+// PA7 (CN10 15)    ------> TIM3_CH2
+
+
+//====================================
+// Left Motor Direction Pins
+// PC8  (CN10  2)    ------> LM298 IN1
+// PC9  (CN10  1)    ------> LM298 IN2
+//====================================
+
+
+//====================================
+// Right Motor Direction Pins
+// PC10 (CN7  1)    ------> LM298 IN3
+// PC11 (CN7  2)    ------> LM298 IN4
+//====================================
+
+
 #include "main.h"
 #include "utility.h"
 #include "encoder.h"
@@ -85,8 +150,8 @@ uint8_t txBuffer[255];
 uint8_t command[255];
 uint8_t inChar;
 
-volatile int rxBufferStart;
-volatile int rxBufferEnd;
+volatile int  rxBufferStart;
+volatile int  rxBufferEnd;
 volatile bool bTxUartReady;
 volatile bool bRxUartReady;
 volatile bool bRxComplete;
@@ -106,76 +171,13 @@ static void SerialPort_Init(void);
 static bool Sensors_Init();
 static void AHRS_Init_Position();
 static void ExecCommand();
-
-
-//=========================================
-// On Board Peripherals
-//=========================================
-// PA5  (CN10 11)   ------> Led On Board
-// PC13 (CN7  23)   ------> Button On Board
-
-
-//===================================
-// USART2 GPIO Configuration
-//===================================
-// GND (CN10 20)    ------> GND
-// PA2 (CN10 35)    ------> USART2_TX
-// PA3 (CN10 37)    ------> USART2_RX
-
-
-//==================================
-// I2C1 GPIO Configuration
-//==================================
-// VIN (CN7  16)    ------> +3.3V
-// GND (CN7  20)    ------> GND
-// PB8 (CN10  3)    ------> I2C1_SCL
-// PB9 (CN10  5)    ------> I2C1_SDA
-
-
-//================================================
-// TIM1 (32 Bit) GPIO Configuration (Left Encoder)
-//================================================
-// PA8 (CN10 21)    ------> TIM1_CH1
-// PA9 (CN10 23)    ------> TIM1_CH2
-
-
-//=================================================
-// TIM4 (32 Bit) GPIO Configuration (Right Encoder)
-//=================================================
-// PB6 (CN10 17)    ------> TIM4_CH1
-// PB7 (CN7  21)    ------> TIM4_CH2
-
-
-//=============================================
-// TIM2 GPIO Configuration (Periodic Interrupt)
-//=============================================
-// No GPIO used
-
-
-//==================================
-// TIM3 GPIO Configuration (PWM)
-//==================================
-// PA6 (CN10 13)    ------> TIM3_CH1
-// PA7 (CN10 15)    ------> TIM3_CH2
-
-
-//====================================
-// Left Motor Direction Pins
-// PC8  (CN10  2)    ------> LM298 IN1
-// PC9  (CN10  1)    ------> LM298 IN2
-//====================================
-
-
-//====================================
-// Right Motor Direction Pins
-// PC10 (CN7  1)    ------> LM298 IN3
-// PC11 (CN7  2)    ------> LM298 IN4
-//====================================
+static void Wait4Connection();
 
 
 int
 main(void) {
     Init();
+    Wait4Connection();
     Loop();
 }
 
@@ -202,8 +204,8 @@ Init() {
     SamplingTimer_init();
 // 10DOF Sensor Initialization
     I2C1_Init();
-    bAHRSpresent = Sensors_Init();
 // 10DOF Sensor Position Initialization
+    bAHRSpresent = Sensors_Init();
     if(bAHRSpresent)
         AHRS_Init_Position();
 // Initialize Motor Controllers
@@ -213,43 +215,48 @@ Init() {
     HAL_TIM_Base_Start_IT(&samplingTimer);
 // Enable and set Button EXTI Interrupt
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-// DMA is programmed for reception before starting the transmission, in order to
+}
+
+
+void
+Wait4Connection() {
+// Ensure an empty UART Buffer
+    while(HAL_UART_Receive(&huart2, &inChar, 1, 10) == HAL_OK) ;
+// DMA is programmed for reception in order to
 // be sure DMA Rx is ready when counterpart will start transmitting
     rxBufferStart = 0;
     rxBufferEnd   = 0;
     bTxUartReady  = true;
     bRxComplete   = false;
     bRxUartReady  = false;
-    if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+    if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
         Error_Handler();
-    }
-    bRun = false;
+
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
     strcpy((char *)txBuffer, "Buggy Ready\n");
+    bRun = false;
     while(!bRun) {
         if(bTxUartReady) {
             bTxUartReady = false;
-            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
+            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
                 Error_Handler();
-            }
+            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         }
         if(bRxUartReady) {
             bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
-            }
         }
         if(bRxComplete) {
             bRxComplete = false;
             bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
-            }
-            if(command[0] == 'G') { // Go
+            if(command[0] == 'G') // Go Command Received !
                 bRun = true;
-            }
         }
-    }
+        HAL_Delay(100);
+    } //  while(!bRun)
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 }
 
@@ -293,7 +300,6 @@ Loop() {
             }
         }
         if(bRxComplete) {
-            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
             bRxComplete = false;
             ExecCommand();
             bRxUartReady = false;
@@ -352,21 +358,17 @@ SamplingTimer_init(void) {
     samplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // tDTS=tCK_INT
     samplingTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
-
-    if(HAL_TIM_Base_Init(&samplingTimer) != HAL_OK) {
+    if(HAL_TIM_Base_Init(&samplingTimer) != HAL_OK)
         Error_Handler();
-    }
 
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    if(HAL_TIM_ConfigClockSource(&samplingTimer, &sClockSourceConfig) != HAL_OK) {
+    if(HAL_TIM_ConfigClockSource(&samplingTimer, &sClockSourceConfig) != HAL_OK)
         Error_Handler();
-    }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&samplingTimer, &sMasterConfig) != HAL_OK) {
+    if(HAL_TIMEx_MasterConfigSynchronization(&samplingTimer, &sMasterConfig) != HAL_OK)
         Error_Handler();
-    }
 
     HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
@@ -402,9 +404,8 @@ SerialPort_Init(void) {
     huart2.Init.HwFlowCtl    = UART_HWCONTROL_NONE;
     huart2.Init.Mode         = UART_MODE_TX_RX;
     huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-    if(HAL_UART_Init(&huart2) != HAL_OK) {
+    if(HAL_UART_Init(&huart2) != HAL_OK)
         Error_Handler();
-    }
 
 // Enable DMA1 clock
     __HAL_RCC_DMA1_CLK_ENABLE();
@@ -424,9 +425,8 @@ SerialPort_Init(void) {
     hdma_usart2_tx.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
     hdma_usart2_tx.Init.MemBurst            = DMA_MBURST_INC4;
     hdma_usart2_tx.Init.PeriphBurst         = DMA_PBURST_INC4;
-    if(HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK) {
+    if(HAL_DMA_Init(&hdma_usart2_tx) != HAL_OK)
         Error_Handler();
-    }
 // Associate the initialized DMA handle to the the UART handle
     __HAL_LINKDMA(&huart2, hdmatx, hdma_usart2_tx);
 
@@ -444,9 +444,8 @@ SerialPort_Init(void) {
     hdma_usart2_rx.Init.FIFOThreshold       = DMA_FIFO_THRESHOLD_FULL;
     hdma_usart2_rx.Init.MemBurst            = DMA_MBURST_INC4;
     hdma_usart2_rx.Init.PeriphBurst         = DMA_PBURST_INC4;
-    if(HAL_DMA_Init(&hdma_usart2_rx) != HAL_OK) {
+    if(HAL_DMA_Init(&hdma_usart2_rx) != HAL_OK)
         Error_Handler();
-    }
     // Associate the initialized DMA handle to the the UART handle
     __HAL_LINKDMA(&huart2, hdmarx, hdma_usart2_rx);
 
