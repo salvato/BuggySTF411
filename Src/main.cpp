@@ -204,8 +204,8 @@ Init() {
     SamplingTimer_init();
 // 10DOF Sensor Initialization
     I2C1_Init();
-// 10DOF Sensor Position Initialization
     bAHRSpresent = Sensors_Init();
+// 10DOF Sensor Position Initialization
     if(bAHRSpresent)
         AHRS_Init_Position();
 // Initialize Motor Controllers
@@ -287,25 +287,21 @@ Loop() {
                 len += sprintf((char *)&txBuffer[len], ",T,%lu\n",
                                static_cast<unsigned long>(HAL_GetTick()));
                 bTxUartReady = false;
-                if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK) {
-                    HAL_TIM_Base_Stop_IT(&samplingTimer);
+                if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
                     Error_Handler();
-                }
             }
         }
         if(bRxUartReady) {
             bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
-            }
         }
         if(bRxComplete) {
             bRxComplete = false;
             ExecCommand();
             bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK) {
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
-            }
         }
         if(bChangeSpeed & bRun) {
             bChangeSpeed = false;
