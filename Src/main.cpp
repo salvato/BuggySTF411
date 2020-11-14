@@ -1,3 +1,4 @@
+/*
 // To configure QtCreator in order to Debug and Run programs
 // on STM32F boards see:
 //
@@ -72,7 +73,7 @@
 // PC10 (CN7  1)    ------> LM298 IN3
 // PC11 (CN7  2)    ------> LM298 IN4
 //====================================
-
+*/
 
 #include "main.h"
 #include "utility.h"
@@ -130,12 +131,14 @@ static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
 TIM_HandleTypeDef samplingTimer; // Samplig Timer
-uint32_t motorSlowingSampler    = 6;
-uint32_t samplingFrequency      = 300;                     // Sampling Frequency [Hz]
-uint32_t motorSamplingFrequency = 300/motorSlowingSampler; // [Hz]
+uint32_t motorSamplingDivision   = 6;
+uint32_t samplingFrequency       = 300;                     // Sampling Frequency [Hz]
+uint32_t motorSamplingFrequency  = 300/motorSamplingDivision; // [Hz]
+uint32_t connectionCheckDivision = samplingFrequency; // To check every second !
 
 uint32_t callsNumber  = 0;
 uint32_t callsNumber2 = 0;
+uint32_t callsNumber3 = 0;
 
 bool bSendAHRS    = false;
 bool bSendMotors  = false;
@@ -156,7 +159,8 @@ volatile bool bTxUartReady;
 volatile bool bRxUartReady;
 volatile bool bRxComplete;
 
-volatile bool bRun;
+volatile bool bRunning;
+volatile bool bStillConnected;
 
 
 //====================================
@@ -226,6 +230,7 @@ Wait4Connection() {
     bRxUartReady  = false;
 
     // Ensure an empty UART Buffer
+    HAL_UART_AbortReceive(&huart2);
     while(HAL_UART_Receive(&huart2, &inChar, 1, 100) == HAL_OK) ;
 
     // Then prepare to receive commands
@@ -234,8 +239,8 @@ Wait4Connection() {
 
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
     strcpy((char *)txBuffer, "Buggy Ready\n");
-    bRun = false;
-    while(!bRun) {
+    bRunning = false;
+    while(!bRunning) {
         if(bRxUartReady) {
             bRxUartReady = false;
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
@@ -263,9 +268,13 @@ Wait4Connection() {
 ///=======================================================================
 static void
 Loop() {
+    bStillConnected = true;
     int ts = 0;
     pLeftControlledMotor->setTargetSpeed(2.0+ts);
     while(true) {
+//        if(!bStillConnected) {
+//            Wait4Connection();
+//        }
         if(bTxUartReady) {
             int len= 0;
             if(bSendAHRS) {
@@ -300,7 +309,7 @@ Loop() {
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
         }
-        if(bChangeSpeed & bRun) {
+        if(bChangeSpeed & bRunning) {
             bChangeSpeed = false;
             ts = 1-ts;
             pLeftControlledMotor->setTargetSpeed(1.0+3*ts);
@@ -503,12 +512,17 @@ AHRS_Init_Position() {
 
 void
 ExecCommand() {
+    if(command[0] == 'K') { // Keep Alive
+        callsNumber3 = 0;
+        bStillConnected = true;
+        return;
+    }
     if(command[0] == 'G') { // Go
-        bRun = true;
+        bRunning = true;
         return;
     }
     else if(command[0] == 'H') { // Halt
-        bRun = false;
+        bRunning = false;
         pLeftControlledMotor->setTargetSpeed(0.0);
         return;
     }
@@ -554,13 +568,17 @@ ExecCommand() {
 // To handle the TIM2 (Periodic Sampler) interrupt.
 void
 TIM2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
+    ++callsNumber3;
+    callsNumber3 = callsNumber3 % connectionCheckDivision;
+    if(callsNumber3)
+        bStillConnected = false;
     ++callsNumber2;
     callsNumber2 = callsNumber2 % 1200;
     if(callsNumber2)
         bChangeSpeed = true;
 
     ++callsNumber;
-    callsNumber = callsNumber % motorSlowingSampler;
+    callsNumber = callsNumber % motorSamplingDivision;
     if(!callsNumber) {
         if(pLeftControlledMotor)
             pLeftControlledMotor->Update();
@@ -592,7 +610,7 @@ EXTI15_10_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
 void
 HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if(GPIO_Pin == B1_Pin) {
-        bRun = !bRun;
+        bRunning = !bRunning;
     }
 }
 
@@ -614,13 +632,13 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
     if(inChar == '\n') {
         int i = 0;
         int index = rxBufferStart;
-        while((index % rxBufferSize) != rxBufferEnd) {
+        while((index % rxBufferSize) != rxBufferEnd)
             command[i++] = rxBuffer[index++];
-        }
         command[i] = 0;
         rxBufferEnd++;
         rxBufferStart = rxBufferEnd;
         bRxComplete = true;
+        bStillConnected = true;
     }
     else {
         rxBuffer[rxBufferEnd] = inChar;
