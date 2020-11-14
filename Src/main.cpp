@@ -184,51 +184,51 @@ main(void) {
 
 static void
 Init() {
-// Initialize the HAL Library
-    HAL_Init();
-// Initialize System Clock
-    SystemClock_Config();
-// Initialize On Board Peripherals
-    GPIO_Init();
-// Initialize the Serial Communication Port (/dev/ttyACM0)
-    SerialPort_Init();
-// Initialize Left Motor and relative Encoder
+    HAL_Init(); // Initialize the HAL Library
+    SystemClock_Config(); // Initialize System Clock
+    GPIO_Init(); // Initialize On Board Peripherals
+    SerialPort_Init(); // Initialize the Serial Communication Port (/dev/ttyACM0)
+
+    // Initialize Left Motor and relative Encoder
     leftEncoder.init();
     leftEncoder.start();
     leftMotor.init();
-// Initialize Right Motor and relative Encoder
+    // Initialize Right Motor and relative Encoder
     rightEncoder.init();
     rightEncoder.start();
     rightMotor.init();
-// Initialize the Periodic Samplig Timer
-    SamplingTimer_init();
-// 10DOF Sensor Initialization
+
+    SamplingTimer_init(); // Initialize the Periodic Samplig Timer
+
+    // 10DOF Sensor Initialization
     I2C1_Init();
     bAHRSpresent = Sensors_Init();
-// 10DOF Sensor Position Initialization
-    if(bAHRSpresent)
+    if(bAHRSpresent) // 10DOF Sensor Position Initialization
         AHRS_Init_Position();
-// Initialize Motor Controllers
+
+    // Initialize Motor Controllers
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
-// Start the Periodic Sampling of AHRS and Motors
+
+    // Start the Periodic Sampling of AHRS and Motors
     HAL_TIM_Base_Start_IT(&samplingTimer);
-// Enable and set Button EXTI Interrupt
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
 }
 
 
 void
 Wait4Connection() {
-// Ensure an empty UART Buffer
-    while(HAL_UART_Receive(&huart2, &inChar, 1, 10) == HAL_OK) ;
-// DMA is programmed for reception in order to
-// be sure DMA Rx is ready when counterpart will start transmitting
     rxBufferStart = 0;
     rxBufferEnd   = 0;
     bTxUartReady  = true;
     bRxComplete   = false;
     bRxUartReady  = false;
+
+    // Ensure an empty UART Buffer
+    while(HAL_UART_Receive(&huart2, &inChar, 1, 100) == HAL_OK) ;
+
+    // Then prepare to receive commands
     if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
         Error_Handler();
 
@@ -236,12 +236,6 @@ Wait4Connection() {
     strcpy((char *)txBuffer, "Buggy Ready\n");
     bRun = false;
     while(!bRun) {
-        if(bTxUartReady) {
-            bTxUartReady = false;
-            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
-                Error_Handler();
-            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-        }
         if(bRxUartReady) {
             bRxUartReady = false;
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
@@ -249,21 +243,24 @@ Wait4Connection() {
         }
         if(bRxComplete) {
             bRxComplete = false;
-            bRxUartReady = false;
+            ExecCommand();
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
-            if(command[0] == 'G') // Go Command Received !
-                bRun = true;
         }
-        HAL_Delay(100);
+        if(bTxUartReady) {
+            bTxUartReady = false;
+            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
+                Error_Handler();
+            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+        }
     } //  while(!bRun)
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 }
 
 
-//=======================================================================
-//                                Main Loop
-//=======================================================================
+///=======================================================================
+///                                Main Loop
+///=======================================================================
 static void
 Loop() {
     int ts = 0;
@@ -311,9 +308,9 @@ Loop() {
         }
     } // while(true)
 }
-//=======================================================================
-//                                 End Loop
-//=======================================================================
+///=======================================================================
+///                                 End Loop
+///=======================================================================
 
 
 static void
