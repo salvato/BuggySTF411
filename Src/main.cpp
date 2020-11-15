@@ -107,16 +107,13 @@ I2C_HandleTypeDef hi2c1;
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
 
-// DcMotor(forwardPort, forwardPin,
-//         reversePort,  reversePin,
+// DcMotor(forwardPort, forwardPin, reversePort,  reversePin,
 //         pwmPort,  pwmPin, pwmTimer)
 
-DcMotor leftMotor(GPIOC, GPIO_PIN_8,
-                  GPIOC, GPIO_PIN_9,
+DcMotor leftMotor(GPIOC, GPIO_PIN_8, GPIOC, GPIO_PIN_9,
                   GPIOA, GPIO_PIN_6, TIM3);
 
-DcMotor rightMotor(GPIOC, GPIO_PIN_10,
-                   GPIOC, GPIO_PIN_11,
+DcMotor rightMotor(GPIOC, GPIO_PIN_10, GPIOC, GPIO_PIN_11,
                    GPIOA, GPIO_PIN_7, TIM3);
 
 ControlledMotor* pLeftControlledMotor  = nullptr;
@@ -132,7 +129,7 @@ static volatile float AHRSvalues[9];
 
 TIM_HandleTypeDef samplingTimer; // Samplig Timer
 uint32_t motorSamplingDivision   = 6;
-uint32_t samplingFrequency       = 300;                     // Sampling Frequency [Hz]
+uint32_t samplingFrequency       = 300; // Sampling Frequency [Hz]
 uint32_t motorSamplingFrequency  = 300/motorSamplingDivision; // [Hz]
 uint32_t connectionCheckDivision = samplingFrequency; // To check every second !
 
@@ -159,8 +156,7 @@ volatile bool bTxUartReady;
 volatile bool bRxUartReady;
 volatile bool bRxComplete;
 
-volatile bool bRunning;
-volatile bool bStillConnected;
+volatile bool bConnected;
 
 
 //====================================
@@ -171,7 +167,6 @@ static void Loop();
 static void I2C1_Init(void);
 static void SamplingTimer_init(void);
 static void SerialPort_Init(void);
-
 static bool Sensors_Init();
 static void AHRS_Init_Position();
 static void ExecCommand();
@@ -181,17 +176,16 @@ static void Wait4Connection();
 int
 main(void) {
     Init();
-    Wait4Connection();
     Loop();
 }
 
 
 static void
 Init() {
-    HAL_Init(); // Initialize the HAL Library
+    HAL_Init();           // Initialize the HAL Library
     SystemClock_Config(); // Initialize System Clock
-    GPIO_Init(); // Initialize On Board Peripherals
-    SerialPort_Init(); // Initialize the Serial Communication Port (/dev/ttyACM0)
+    GPIO_Init();          // Initialize On Board Peripherals
+    SerialPort_Init();    // Initialize the Serial Communication Port (/dev/ttyACM0)
 
     // Initialize Left Motor and relative Encoder
     leftEncoder.init();
@@ -214,10 +208,10 @@ Init() {
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
 
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
+
     // Start the Periodic Sampling of AHRS and Motors
     HAL_TIM_Base_Start_IT(&samplingTimer);
-
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
 }
 
 
@@ -229,7 +223,7 @@ Wait4Connection() {
     bRxComplete   = false;
     bRxUartReady  = false;
 
-    // Ensure an empty UART Buffer
+    // Ensure an Empty UART Buffer
     HAL_UART_AbortReceive(&huart2);
     while(HAL_UART_Receive(&huart2, &inChar, 1, 100) == HAL_OK) ;
 
@@ -239,8 +233,8 @@ Wait4Connection() {
 
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
     strcpy((char *)txBuffer, "Buggy Ready\n");
-    bRunning = false;
-    while(!bRunning) {
+    bConnected = false;
+    while(!bConnected) {
         if(bRxUartReady) {
             bRxUartReady = false;
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
@@ -256,9 +250,8 @@ Wait4Connection() {
             bTxUartReady = false;
             if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
                 Error_Handler();
-            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         }
-    } //  while(!bRun)
+    } //  while(!bConnected)
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 }
 
@@ -268,13 +261,11 @@ Wait4Connection() {
 ///=======================================================================
 static void
 Loop() {
-    bStillConnected = true;
-    int ts = 0;
-    pLeftControlledMotor->setTargetSpeed(2.0+ts);
     while(true) {
-//        if(!bStillConnected) {
-//            Wait4Connection();
-//        }
+        if(!bConnected) {
+            pLeftControlledMotor->Stop();
+            Wait4Connection();
+        }
         if(bTxUartReady) {
             int len= 0;
             if(bSendAHRS) {
@@ -308,12 +299,6 @@ Loop() {
             bRxUartReady = false;
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
-        }
-        if(bChangeSpeed & bRunning) {
-            bChangeSpeed = false;
-            ts = 1-ts;
-            pLeftControlledMotor->setTargetSpeed(1.0+3*ts);
-
         }
     } // while(true)
 }
@@ -514,15 +499,13 @@ void
 ExecCommand() {
     if(command[0] == 'K') { // Keep Alive
         callsNumber3 = 0;
-        bStillConnected = true;
+        bConnected = true;
         return;
     }
     if(command[0] == 'G') { // Go
-        bRunning = true;
         return;
     }
     else if(command[0] == 'H') { // Halt
-        bRunning = false;
         pLeftControlledMotor->setTargetSpeed(0.0);
         return;
     }
@@ -535,15 +518,15 @@ ExecCommand() {
     if(command[0] == 'L') // Left Motor commands
         pDestinationMotor = pLeftControlledMotor;
     else if(command[0] == 'R') // Right Motor commands
-        return; // <<<<<<<<<<<<<<<<<<<<<<<<<<<========================= No Right Motor at Present
+        return; // <<<<<<<<<<<========================= No Right Motor at Present
         //pDestinationMotor = pRightControlledMotor;
     else
         return; // Command Error !
 
     if(command[1] == 's') { // New Speed
-        double newSpeed;
-        sscanf((const char*)(&command[2]), "%lf", &newSpeed);
-        pDestinationMotor->setTargetSpeed(newSpeed);
+        int newValue;
+        sscanf((const char*)(&command[2]), "%d", &newValue);
+        pDestinationMotor->setTargetSpeed(newValue/100.0);
 
     }
     else if(command[1] == 'p') { // New Proportional PID value
@@ -568,18 +551,22 @@ ExecCommand() {
 // To handle the TIM2 (Periodic Sampler) interrupt.
 void
 TIM2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
+    // Are we Still Connected ?
     ++callsNumber3;
     callsNumber3 = callsNumber3 % connectionCheckDivision;
-    if(callsNumber3)
-        bStillConnected = false;
+    if(callsNumber3 == 0)
+        bConnected = false;
+
+    // Do we have to Change motor Speed ?
     ++callsNumber2;
     callsNumber2 = callsNumber2 % 1200;
-    if(callsNumber2)
+    if(callsNumber2 == 0)
         bChangeSpeed = true;
 
+    // Is it time to Update Motors Data ?
     ++callsNumber;
     callsNumber = callsNumber % motorSamplingDivision;
-    if(!callsNumber) {
+    if(callsNumber == 0) {
         if(pLeftControlledMotor)
             pLeftControlledMotor->Update();
         bSendMotors = true;
@@ -596,7 +583,6 @@ TIM2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
         bSendAHRS = true;
     }
     __HAL_TIM_CLEAR_IT(&samplingTimer, uint32_t(TIM_IT_UPDATE));
-    //HAL_TIM_IRQHandler(&samplingTimer);
 }
 
 
@@ -610,7 +596,7 @@ EXTI15_10_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
 void
 HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if(GPIO_Pin == B1_Pin) {
-        bRunning = !bRunning;
+
     }
 }
 
@@ -638,7 +624,7 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
         rxBufferEnd++;
         rxBufferStart = rxBufferEnd;
         bRxComplete = true;
-        bStillConnected = true;
+        bConnected = true;
     }
     else {
         rxBuffer[rxBufferEnd] = inChar;
