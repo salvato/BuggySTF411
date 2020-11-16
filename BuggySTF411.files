@@ -1025,6 +1025,8 @@ Src/utility.cpp
 controlledmotor.cpp
 controlledmotor.h
 docs/DB2196.pdf
+docs/HC-SR04_Schematic.pdf
+docs/HCSR04.pdf
 docs/L298N Motor Driver.pdf
 docs/L298N_Datasheet.pdf
 docs/NUCLEO-F411RE_User_manual.pdf

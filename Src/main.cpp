@@ -554,7 +554,7 @@ ExecCommand() {
 
 // To handle the TIM2 (Periodic Sampler) interrupt.
 void
-TIM2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
+TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
     // Are we Still Connected ?
     ++callsNumber3;
     callsNumber3 = callsNumber3 % connectionCheckDivision;
