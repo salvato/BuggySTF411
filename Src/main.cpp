@@ -103,6 +103,7 @@
 bool bAHRSpresent;
 
 I2C_HandleTypeDef hi2c1;
+TIM_HandleTypeDef samplingTimer; // Samplig Timer
 
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
@@ -127,10 +128,9 @@ Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
-TIM_HandleTypeDef samplingTimer; // Samplig Timer
-uint32_t motorSamplingDivision   = 6;
-uint32_t samplingFrequency       = 300; // Sampling Frequency [Hz]
-uint32_t motorSamplingFrequency  = 300/motorSamplingDivision; // [Hz]
+uint32_t samplingFrequency       = 400; // Sampling Frequency [Hz]
+uint32_t motorSamplingFrequency  = 50; // [Hz]
+uint32_t motorSamplingDivision   = samplingFrequency/motorSamplingFrequency;
 uint32_t connectionCheckDivision = samplingFrequency; // To check every second !
 
 uint32_t callsNumber  = 0;
@@ -266,6 +266,7 @@ Loop() {
             pLeftControlledMotor->Stop();
             Wait4Connection();
         }
+
         if(bTxUartReady) {
             int len= 0;
             if(bSendAHRS) {
@@ -286,13 +287,16 @@ Loop() {
                 bTxUartReady = false;
                 if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
                     Error_Handler();
+                HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
             }
-        }
+        } // if(bTxUartReady)
+
         if(bRxUartReady) {
             bRxUartReady = false;
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
         }
+
         if(bRxComplete) {
             bRxComplete = false;
             ExecCommand();
@@ -436,7 +440,7 @@ SerialPort_Init(void) {
     // Associate the initialized DMA handle to the the UART handle
     __HAL_LINKDMA(&huart2, hdmarx, hdma_usart2_rx);
 
-// Configure the NVIC for DMA ##########################################*/
+// Configure the NVIC for DMA ##########################################
 // NVIC configuration for DMA Tx transfer complete interrupt
     HAL_NVIC_SetPriority(USART2_DMA_TX_IRQn, 0, 1);
     HAL_NVIC_EnableIRQ(USART2_DMA_TX_IRQn);
@@ -572,11 +576,11 @@ TIM2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
         bSendMotors = true;
     }
 
-    if(bAHRSpresent) {
+    if(bAHRSpresent) {// Is it time to Update AHRS Data ?
         Acc.get_Gxyz(&AHRSvalues[0]);
         Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
         Magn.ReadScaledAxis(&AHRSvalues[6]);
-        for(int i=0; i<3; i++) // 13us per call...
+        for(int i=0; i<3; i++) // ~13us per call...
             Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
                             AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
                             AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
