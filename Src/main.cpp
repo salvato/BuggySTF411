@@ -73,6 +73,16 @@
 // PC10 (CN7  1)    ------> LM298 IN3
 // PC11 (CN7  2)    ------> LM298 IN4
 //====================================
+
+//====================================
+// Used Peripherals:
+// Timers:
+//     TIM1 ---> Encoder (Left)
+//     TIM2 ---> Periodic Interrupt
+//     TIM3 ---> PWM (Motors)
+//     TIM4 ---> Encoder (Right)
+//     TIM9 ---> Ultrasound Sensor
+//====================================
 */
 
 #include "main.h"
@@ -104,6 +114,7 @@ bool bAHRSpresent;
 
 I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef samplingTimer; // Samplig Timer
+TIM_HandleTypeDef radarTimer;
 
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
@@ -659,13 +670,12 @@ USART2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_UART_IRQHandler(&huart2);
 }
 
-/*
+
 uint32_t IC_Val1 = 0;
 uint32_t IC_Val2 = 0;
 uint32_t Difference = 0;
 bool     bFirstCaptured = false;  // is the first value captured ?
 uint8_t  Distance  = 0;
-TIM_HandleTypeDef htim1;
 
 #define TRIG_PIN  GPIO_PIN_9
 #define TRIG_PORT GPIOA
@@ -677,7 +687,7 @@ HCSR04_Read(void) {
     HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
     delay(10);  // wait for 10 us
     HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
-    __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC1);
+    __HAL_TIM_ENABLE_IT(&radarTimer, TIM_IT_CC1);
 }
 
 static void
@@ -687,53 +697,56 @@ MX_TIM1_Init(void) {
     memset(&sMasterConfig, 0, sizeof(sMasterConfig));
     memset(&sConfigIC, 0, sizeof(sConfigIC));
 
-    htim1.Instance = TIM1;
-    htim1.Init.Prescaler = 72-1;
-    htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim1.Init.Period = 0xffff-1;
-    htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    htim1.Init.RepetitionCounter = 0;
-    htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if(HAL_TIM_IC_Init(&htim1) != HAL_OK) {
+    radarTimer.Instance = TIM9;
+    radarTimer.Init.Prescaler = 72-1;
+    radarTimer.Init.CounterMode = TIM_COUNTERMODE_UP;
+    radarTimer.Init.Period = 0xffff-1;
+    radarTimer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    radarTimer.Init.RepetitionCounter = 0;
+    radarTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if(HAL_TIM_IC_Init(&radarTimer) != HAL_OK) {
         Error_Handler();
     }
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK) {
+    if(HAL_TIMEx_MasterConfigSynchronization(&radarTimer, &sMasterConfig) != HAL_OK) {
         Error_Handler();
     }
     sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
     sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
     sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
     sConfigIC.ICFilter = 0;
-    if(HAL_TIM_IC_ConfigChannel(&htim1, &sConfigIC, TIM_CHANNEL_1) != HAL_OK) {
+    if(HAL_TIM_IC_ConfigChannel(&radarTimer, &sConfigIC, TIM_CHANNEL_1) != HAL_OK) {
         Error_Handler();
     }
 }
+
 
 void
 HAL_TIM_IC_MspInit(TIM_HandleTypeDef* htim_ic) {
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
-    if(htim_ic->Instance == TIM1) {
-        __HAL_RCC_TIM1_CLK_ENABLE();
-        __HAL_RCC_GPIOA_CLK_ENABLE();
-        // TIM1 GPIO Configuration
-        // PA8    ------> TIM1_CH1
+    if(htim_ic->Instance == TIM9) {
+        __HAL_RCC_TIM1_CLK_ENABLE(); // <======== No !!!
+        __HAL_RCC_GPIOA_CLK_ENABLE(); // <======== No !!!
+        // TIM1 GPIO Configuration // <======== No !!!
+        // PA8    ------> TIM1_CH1 // <======== No !!!
         GPIO_InitStruct.Pin = TRIG_PIN;
         GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
         GPIO_InitStruct.Pull = GPIO_NOPULL;
         HAL_GPIO_Init(TRIG_PORT, &GPIO_InitStruct);
         // TIM1 interrupt Init
-        HAL_NVIC_SetPriority(TIM1_CC_IRQn, 0, 0);
-        HAL_NVIC_EnableIRQ(TIM1_CC_IRQn);
+        HAL_NVIC_SetPriority(TIM1_CC_IRQn, 0, 0); // <======== No !!!
+        HAL_NVIC_EnableIRQ(TIM1_CC_IRQn); // <======== No !!!
     }
 }
 
+
 void
 TIM1_CC_IRQHandler(void) {
-    HAL_TIM_IRQHandler(&htim1);
+    HAL_TIM_IRQHandler(&radarTimer);
 }
+
 
 void
 HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
@@ -761,7 +774,7 @@ HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
         }
     } // if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
 }
-*/
+
 
 // UART error callbacks
 // UartHandle: UART handle
