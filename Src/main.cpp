@@ -667,8 +667,18 @@ bool     bFirstCaptured = false;  // is the first value captured ?
 uint8_t  Distance  = 0;
 TIM_HandleTypeDef htim1;
 
-#define TRIG_PIN  GPIO_PIN_8
+#define TRIG_PIN  GPIO_PIN_9
 #define TRIG_PORT GPIOA
+#define ECHO_PIN  GPIO_PIN_8
+#define ECHO_PORT GPIOA
+
+void
+HCSR04_Read(void) {
+    HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
+    delay(10);  // wait for 10 us
+    HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
+    __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_CC1);
+}
 
 static void
 MX_TIM1_Init(void) {
@@ -720,6 +730,10 @@ HAL_TIM_IC_MspInit(TIM_HandleTypeDef* htim_ic) {
     }
 }
 
+void
+TIM1_CC_IRQHandler(void) {
+    HAL_TIM_IRQHandler(&htim1);
+}
 
 void
 HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
