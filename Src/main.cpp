@@ -197,7 +197,7 @@ Init() {
     SystemClock_Config(); // Initialize System Clock
     GPIO_Init();          // Initialize On Board Peripherals
     SerialPort_Init();    // Initialize the Serial Communication Port (/dev/ttyACM0)
-
+/*
     // Initialize Left Motor and relative Encoder
     leftEncoder.init();
     leftEncoder.start();
@@ -206,9 +206,9 @@ Init() {
     rightEncoder.init();
     rightEncoder.start();
     rightMotor.init();
-
+*/
     SamplingTimer_init(); // Initialize the Periodic Samplig Timer
-
+/*
     // 10DOF Sensor Initialization
     I2C1_Init();
     bAHRSpresent = Sensors_Init();
@@ -220,9 +220,14 @@ Init() {
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
 
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
-
+*/
     // Start the Periodic Sampling of AHRS and Motors
     HAL_TIM_Base_Start_IT(&samplingTimer);
+
+    sprintf((char *)&txBuffer[0], "testTIM2\n");
+    bTxUartReady = false;
+    if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
+        Error_Handler();
 }
 
 
@@ -273,6 +278,7 @@ Wait4Connection() {
 static void
 Loop() {
     while(true) {
+/*
         if(!bConnected) {
             pLeftControlledMotor->Stop();
             Wait4Connection();
@@ -315,6 +321,7 @@ Loop() {
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
         }
+*/
     } // while(true)
 }
 ///=======================================================================
@@ -342,6 +349,12 @@ I2C1_Init(void) {
 // Check: http://00xnor.blogspot.com/2014/01/3-stm32-f4-general-purpose-timers.html
 static void
 SamplingTimer_init(void) {
+#define   APB1_FREQ        50000000                           // Clock driving TIM2
+#define   CNT_FREQ         10000000                           // TIM3 counter clock (prescaled APB1)
+#define   IT_PER_SEC       1000                               // Interrupts per second
+#define   TIM2_PULSE       ((CNT_FREQ) / (IT_PER_SEC))        // Output compare reg value
+#define   TIM_PRESCALER    (((APB1_FREQ) / (CNT_FREQ))-1)     // APB1 prescaler
+
     TIM_ClockConfigTypeDef sClockSourceConfig;
     TIM_MasterConfigTypeDef sMasterConfig;
     memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
@@ -355,10 +368,10 @@ SamplingTimer_init(void) {
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/counterClock)-1;
 
     samplingTimer.Instance = TIM2;
-    samplingTimer.Init.Prescaler         = uwPrescalerValue;
+    samplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // No Clock Division
+    samplingTimer.Init.Period            = 0xFFFF; // (Sampling period) / (Clock Period)
     samplingTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    samplingTimer.Init.Period            = (counterClock/samplingFrequency)-1; // (Sampling period) / (Clock Period)
-    samplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // tDTS=tCK_INT
+    samplingTimer.Init.Prescaler         = TIM_PRESCALER;
     samplingTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
     if(HAL_TIM_Base_Init(&samplingTimer) != HAL_OK)
@@ -372,6 +385,15 @@ SamplingTimer_init(void) {
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
     if(HAL_TIMEx_MasterConfigSynchronization(&samplingTimer, &sMasterConfig) != HAL_OK)
         Error_Handler();
+
+//    HAL_TIM_OCInitTypeDef TIM2_OC;                            // Output Compare structure
+//    TIM2_OC.TIM_OCMode      = TIM_OCMode_Toggle;                // Output compare toggling mode
+//    TIM2_OC.TIM_OutputState = TIM_OutputState_Enable;           // Enabling the Output Compare state
+//    TIM2_OC.TIM_OCPolarity  = TIM_OCPolarity_Low;               // Reverse polarity
+//    TIM2_OC.TIM_Pulse       = TIM3_PULSE;
+//    // Output Compare 1 reg value
+//    HAL_TIM_OC1Init(TIM3, &TIM3_OC);                                // Initializing Output Compare 1 structure
+//    TIM_OC1PreloadConfig(TIM3, TIM_OCPreload_Disable);          // Disabling Ch.1 Output Compare preload
 
     HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
@@ -671,7 +693,7 @@ USART2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_UART_IRQHandler(&huart2);
 }
 
-
+/*
 uint32_t IC_Val1 = 0;
 uint32_t IC_Val2 = 0;
 uint32_t Difference = 0;
@@ -775,7 +797,7 @@ HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
         }
     } // if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
 }
-
+*/
 
 // UART error callbacks
 // UartHandle: UART handle

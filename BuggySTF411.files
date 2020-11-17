@@ -1025,6 +1025,7 @@ Src/utility.cpp
 controlledmotor.cpp
 controlledmotor.h
 docs/DB2196.pdf
+docs/General-purpose timer cookbook.pdf
 docs/HC-SR04_Schematic.pdf
 docs/HCSR04.pdf
 docs/L298N Motor Driver.pdf
