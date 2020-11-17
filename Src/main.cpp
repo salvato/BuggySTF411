@@ -339,6 +339,7 @@ I2C1_Init(void) {
 }
 
 
+// Check: http://00xnor.blogspot.com/2014/01/3-stm32-f4-general-purpose-timers.html
 static void
 SamplingTimer_init(void) {
     TIM_ClockConfigTypeDef sClockSourceConfig;
