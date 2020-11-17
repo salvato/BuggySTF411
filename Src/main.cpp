@@ -345,7 +345,7 @@ SamplingTimer_init(void) {
     TIM_ClockConfigTypeDef sClockSourceConfig;
     TIM_MasterConfigTypeDef sMasterConfig;
     memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
-    memset(&sMasterConfig, 0, sizeof(sMasterConfig));
+    memset(&sMasterConfig,      0, sizeof(sMasterConfig));
 
     __HAL_RCC_TIM2_CLK_ENABLE();
 
