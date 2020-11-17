@@ -38,6 +38,22 @@ GPIO_Init(void) {
 }
 
 
+// System Clock Configuration
+//    The system Clock is configured as follow :
+//        System Clock source            = PLL (HSI)
+//        SYSCLK(Hz)                     = 100000000
+//        HCLK(Hz)                       = 100000000
+//        AHB Prescaler                  = 1
+//        APB1 Prescaler                 = 2
+//        APB2 Prescaler                 = 1
+//        HSI Frequency(Hz)              = 16000000
+//        PLL_M                          = 16
+//        PLL_N                          = 400
+//        PLL_P                          = 4
+//        PLL_Q                          = 7
+//        VDD(V)                         = 3.3
+//        Main regulator output voltage  = Scale2 mode
+//        Flash Latency(WS)              = 3
 void
 SystemClock_Config(void) {
     RCC_OscInitTypeDef RCC_OscInitStruct;
@@ -54,9 +70,9 @@ SystemClock_Config(void) {
     RCC_OscInitStruct.PLL.PLLState        = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource       = RCC_PLLSOURCE_HSI;
     RCC_OscInitStruct.PLL.PLLM            = 16;
-    RCC_OscInitStruct.PLL.PLLN            = 336;
+    RCC_OscInitStruct.PLL.PLLN            = 400;
     RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV4;
-    RCC_OscInitStruct.PLL.PLLQ            = 4;
+    RCC_OscInitStruct.PLL.PLLQ            = 7;
     if(HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
         Error_Handler();
     }
