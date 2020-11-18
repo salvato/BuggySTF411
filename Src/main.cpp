@@ -109,15 +109,19 @@
 #define USART2_FORCE_RESET()   __HAL_RCC_USART2_FORCE_RESET()
 #define USARt2_RELEASE_RESET() __HAL_RCC_USART2_RELEASE_RESET()
 
+#define SONAR_TRIG_PIN  GPIO_PIN_9
+#define SONAR_TRIG_PORT GPIOA
+#define ECHO_PIN  GPIO_PIN_8
+#define ECHO_PORT GPIOA
+
 
 //==================
 // Private variables
 //==================
-bool bAHRSpresent;
 
 I2C_HandleTypeDef hi2c1;
-TIM_HandleTypeDef samplingTimer;     // Samplig Timer
-TIM_HandleTypeDef radarPulsingTimer; // To Measure the Radar Echo Pulse Duration
+TIM_HandleTypeDef samplingTimer; // Samplig Timer
+TIM_HandleTypeDef sonarTimer;    // To Measure the Radar Echo Pulse Duration
 
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
@@ -134,19 +138,18 @@ DcMotor rightMotor(GPIOC, GPIO_PIN_10, GPIOC, GPIO_PIN_11,
 ControlledMotor* pLeftControlledMotor  = nullptr;
 ControlledMotor* pRightControlledMotor = nullptr;
 
+bool bAHRSpresent;
 ADXL345  Acc;      // 400KHz I2C Capable. Maximum Output Data Rate is 800 Hz
 ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
-
 static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
 double counterClock = 1000000.0;
-
 uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
-uint32_t sonarSamplingFrequency  = 5;   // [Hz]
+uint32_t sonarSamplingFrequency  = 1;   // [Hz]
 
 uint32_t AHRSSamplingPeriod  = uint32_t(counterClock/AHRSSamplingFrequency+0.5);  // [Hz]
 uint32_t motorSamplingPeriod = uint32_t(counterClock/motorSamplingFrequency+0.5); // [Hz]
@@ -588,6 +591,15 @@ ExecCommand() {
 }
 
 
+void
+HCSR04_Read(void) {
+    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
+    HAL_Delay(1);  // <<<<<<<<<<<<============== wait for 10 us
+    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
+    __HAL_TIM_ENABLE_IT(&sonarTimer, TIM_IT_CC1);
+}
+
+
 // To handle the TIM2 (Periodic Sampler) interrupt.
 void
 TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
@@ -621,9 +633,9 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
             bSendMotors = true;
         }
     }
-    else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) { // Is it time to Update Sonar Data ?
+    else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) { // Is it time to Update Sonar Data ? 1Hz
         htim->Instance->CCR3 += sonarSamplingPeriod;
-        bConnected = false; // Are we Still Connected ?
+        bConnected = false; // Preparing to check if we are Still Connected ?
     }
 }
 
@@ -666,7 +678,6 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
         rxBufferEnd++;
         rxBufferStart = rxBufferEnd;
         bRxComplete = true;
-        bConnected = true;
     }
     else {
         rxBuffer[rxBufferEnd] = inChar;
