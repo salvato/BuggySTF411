@@ -52,6 +52,9 @@
 // TIM2 GPIO Configuration (Periodic Interrupt)
 //=============================================
 // No GPIO used
+// Channel1         ------> AHRS Sampling
+// Channel2         ------> Motors Sampling
+// Channel1         ------> Sonar Sampling
 
 
 //==================================
@@ -599,7 +602,6 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
                                 AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
             bSendAHRS = true;
         }
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) { // Is it time to Update Motors Data ?
         htim->Instance->CCR2 += 1000000/motorSamplingFrequency;
@@ -615,6 +617,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) { // Is it time to Update Sonar Data ?
         htim->Instance->CCR3 += 1000000/sonarSamplingFrequency;
         bConnected = false; // Are we Still Connected ?
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
 }
 
@@ -687,6 +690,7 @@ void
 USART2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_UART_IRQHandler(&huart2);
 }
+
 
 /*
 uint32_t IC_Val1 = 0;
