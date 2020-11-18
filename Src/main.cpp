@@ -158,6 +158,7 @@ bool bSendMotors  = false;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef  hdma_usart2_tx;
 DMA_HandleTypeDef  hdma_usart2_rx;
+
 int     rxBufferSize = 255;
 uint8_t rxBuffer[255];
 uint8_t txBuffer[255];
@@ -253,28 +254,28 @@ Wait4Connection() {
     if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
         Error_Handler();
 
-//    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-//    strcpy((char *)txBuffer, "Buggy Ready\n");
-//    bConnected = false;
-//    while(!bConnected) {
-//        if(bRxUartReady) {
-//            bRxUartReady = false;
-//            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-//                Error_Handler();
-//        }
-//        if(bRxComplete) {
-//            bRxComplete = false;
-//            ExecCommand();
-//            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-//                Error_Handler();
-//        }
-//        if(bTxUartReady) {
-//            bTxUartReady = false;
-//            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
-//                Error_Handler();
-//        }
-//    } //  while(!bConnected)
-//    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    strcpy((char *)txBuffer, "Buggy Ready\n");
+    bConnected = false;
+    while(!bConnected) {
+        if(bRxUartReady) {
+            bRxUartReady = false;
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+                Error_Handler();
+        }
+        if(bRxComplete) {
+            bRxComplete = false;
+            ExecCommand();
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+                Error_Handler();
+        }
+        if(bTxUartReady) {
+            bTxUartReady = false;
+            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
+                Error_Handler();
+        }
+    } //  while(!bConnected)
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 }
 
 
@@ -311,8 +312,8 @@ Loop() {
                 bTxUartReady = false;
                 if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
                     Error_Handler();
-                HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
             }
+            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         } // if(bTxUartReady)
 
         if(bRxUartReady) {
