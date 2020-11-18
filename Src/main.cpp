@@ -116,8 +116,8 @@
 bool bAHRSpresent;
 
 I2C_HandleTypeDef hi2c1;
-TIM_HandleTypeDef samplingTimer; // Samplig Timer
-TIM_HandleTypeDef radarTimer;
+TIM_HandleTypeDef samplingTimer;     // Samplig Timer
+TIM_HandleTypeDef radarPulsingTimer; // To Measure the Radar Echo Pulse Duration
 
 Encoder leftEncoder(TIM1);
 Encoder rightEncoder(TIM4);
@@ -182,7 +182,7 @@ static void Loop();
 static void I2C1_Init(void);
 static void SamplingTimer_init(void);
 static void SerialPort_Init(void);
-static bool Sensors_Init();
+static bool AHRS_Init();
 static void AHRS_Init_Position();
 static void ExecCommand();
 static void Wait4Connection();
@@ -215,13 +215,13 @@ Init() {
 
     // 10DOF Sensor Initialization
     I2C1_Init();
-    bAHRSpresent = Sensors_Init();
+    bAHRSpresent = AHRS_Init();
     if(bAHRSpresent) // 10DOF Sensor Position Initialization
         AHRS_Init_Position();
 
     // Initialize Motor Controllers
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
-    pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
+//    pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
 
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
 
@@ -284,16 +284,17 @@ Wait4Connection() {
 ///=======================================================================
 static void
 Loop() {
-    bTxUartReady  = true;
+    int len;
     while(true) {
+        // Wait Until Connected With Remote
+        if(!bConnected) { // Asyncronously Changed Via Interrupts
+            pLeftControlledMotor->Stop();
+            Wait4Connection(); // Blocking Call...
+        }
 
-//        if(!bConnected) {
-//            pLeftControlledMotor->Stop();
-//            Wait4Connection();
-//        }
-
+        // Transmit new Data only if previous ones were sent
         if(bTxUartReady) {
-            int len= 0;
+            len = 0;
             if(bSendAHRS) {
                 bSendAHRS = false;
                 Madgwick.getRotation(&q0, &q1, &q2, &q3);
@@ -309,8 +310,8 @@ Loop() {
             if(len > 0) {
                 len += sprintf((char *)&txBuffer[len], ",T,%lu\n",
                                static_cast<unsigned long>(HAL_GetTick()));
-                bTxUartReady = false;
-                if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
+                bTxUartReady = false; // Asyncronously Changed Via Interrupts
+                if(HAL_UART_Transmit_DMA(&huart2, txBuffer, len) != HAL_OK)
                     Error_Handler();
             }
             HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
@@ -331,7 +332,7 @@ Loop() {
         }
 
     } // while(true)
-}
+} // Loop()
 ///=======================================================================
 ///                                 End Loop
 ///=======================================================================
@@ -354,7 +355,6 @@ I2C1_Init(void) {
 }
 
 
-// Check: http://00xnor.blogspot.com/2014/01/3-stm32-f4-general-purpose-timers.html
 static void
 SamplingTimer_init(void) {
     __HAL_RCC_TIM2_CLK_ENABLE();
@@ -493,7 +493,7 @@ SerialPort_Init(void) {
 
 
 bool
-Sensors_Init() {
+AHRS_Init() {
 // Accelerator Init
     if(!Acc.init(ADXL345_ADDR_ALT_LOW, &hi2c1))
         return false;
