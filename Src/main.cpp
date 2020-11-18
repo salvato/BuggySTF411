@@ -106,8 +106,8 @@
 #define I2C_SPEEDCLOCK 400000 // Hz
 
 
-#define USART2_FORCE_RESET()             __HAL_RCC_USART2_FORCE_RESET()
-#define USARt2_RELEASE_RESET()           __HAL_RCC_USART2_RELEASE_RESET()
+#define USART2_FORCE_RESET()   __HAL_RCC_USART2_FORCE_RESET()
+#define USARt2_RELEASE_RESET() __HAL_RCC_USART2_RELEASE_RESET()
 
 
 //==================
@@ -142,9 +142,15 @@ Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
+double counterClock = 1000000.0;
+
 uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
 uint32_t sonarSamplingFrequency  = 5;   // [Hz]
+
+uint32_t AHRSSamplingPeriod  = uint32_t(counterClock/AHRSSamplingFrequency+0.5);  // [Hz]
+uint32_t motorSamplingPeriod = uint32_t(counterClock/motorSamplingFrequency+0.5); // [Hz]
+uint32_t sonarSamplingPeriod = uint32_t(counterClock/sonarSamplingFrequency+0.5); // [Hz]
 
 bool bSendAHRS    = false;
 bool bSendMotors  = false;
@@ -247,28 +253,28 @@ Wait4Connection() {
     if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
         Error_Handler();
 
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-    strcpy((char *)txBuffer, "Buggy Ready\n");
-    bConnected = false;
-    while(!bConnected) {
-        if(bRxUartReady) {
-            bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-                Error_Handler();
-        }
-        if(bRxComplete) {
-            bRxComplete = false;
-            ExecCommand();
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-                Error_Handler();
-        }
-        if(bTxUartReady) {
-            bTxUartReady = false;
-            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
-                Error_Handler();
-        }
-    } //  while(!bConnected)
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+//    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+//    strcpy((char *)txBuffer, "Buggy Ready\n");
+//    bConnected = false;
+//    while(!bConnected) {
+//        if(bRxUartReady) {
+//            bRxUartReady = false;
+//            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+//                Error_Handler();
+//        }
+//        if(bRxComplete) {
+//            bRxComplete = false;
+//            ExecCommand();
+//            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+//                Error_Handler();
+//        }
+//        if(bTxUartReady) {
+//            bTxUartReady = false;
+//            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
+//                Error_Handler();
+//        }
+//    } //  while(!bConnected)
+//    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 }
 
 
@@ -277,12 +283,13 @@ Wait4Connection() {
 ///=======================================================================
 static void
 Loop() {
+    bTxUartReady  = true;
     while(true) {
 
-        if(!bConnected) {
-            pLeftControlledMotor->Stop();
-            Wait4Connection();
-        }
+//        if(!bConnected) {
+//            pLeftControlledMotor->Stop();
+//            Wait4Connection();
+//        }
 
         if(bTxUartReady) {
             int len= 0;
@@ -351,7 +358,6 @@ static void
 SamplingTimer_init(void) {
     __HAL_RCC_TIM2_CLK_ENABLE();
 
-    uint32_t counterClock = 1000000;
     // Prescaler value to have a 1MHz TIM2 Input Counter Clock
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/counterClock)-1;
 
@@ -376,17 +382,17 @@ SamplingTimer_init(void) {
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 
-    sConfigOC.Pulse      = counterClock/AHRSSamplingFrequency;
+    sConfigOC.Pulse = AHRSSamplingPeriod;
     if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
         Error_Handler();
     }
 
-    sConfigOC.Pulse      = counterClock/motorSamplingFrequency;
+    sConfigOC.Pulse = motorSamplingPeriod;
     if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
     }
 
-    sConfigOC.Pulse      = counterClock/sonarSamplingFrequency;
+    sConfigOC.Pulse = sonarSamplingPeriod;
     if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_3) != HAL_OK) {
         Error_Handler();
     }
@@ -472,15 +478,15 @@ SerialPort_Init(void) {
 
 // Configure the NVIC for DMA ##########################################
 // NVIC configuration for DMA Tx transfer complete interrupt
-    HAL_NVIC_SetPriority(USART2_DMA_TX_IRQn, 0, 1);
+    HAL_NVIC_SetPriority(USART2_DMA_TX_IRQn, 1, 1);
     HAL_NVIC_EnableIRQ(USART2_DMA_TX_IRQn);
 
 // NVIC configuration for DMA Rx transfer complete interrupt
-    HAL_NVIC_SetPriority(USART2_DMA_RX_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(USART2_DMA_RX_IRQn, 1, 1);
     HAL_NVIC_EnableIRQ(USART2_DMA_RX_IRQn);
 
 // NVIC configuration for USART TC interrupt
-    HAL_NVIC_SetPriority(USART2_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(USART2_IRQn, 1, 1);
     HAL_NVIC_EnableIRQ(USART2_IRQn);
 }
 
@@ -591,7 +597,7 @@ TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
 void
 HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
     if(samplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_1) { // Is it time to Update AHRS Data ?
-        htim->Instance->CCR1 += 1000000/AHRSSamplingFrequency;
+        htim->Instance->CCR1 += AHRSSamplingPeriod;
         if(bAHRSpresent) {
             Acc.get_Gxyz(&AHRSvalues[0]);
             Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
@@ -604,7 +610,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
         }
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) { // Is it time to Update Motors Data ?
-        htim->Instance->CCR2 += 1000000/motorSamplingFrequency;
+        htim->Instance->CCR2 += motorSamplingPeriod;
         if(pLeftControlledMotor) {
             pLeftControlledMotor->Update();
             bSendMotors = true;
@@ -615,9 +621,8 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
         }
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) { // Is it time to Update Sonar Data ?
-        htim->Instance->CCR3 += 1000000/sonarSamplingFrequency;
+        htim->Instance->CCR3 += sonarSamplingPeriod;
         bConnected = false; // Are we Still Connected ?
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
 }
 
