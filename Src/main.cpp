@@ -139,18 +139,12 @@ Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
-uint32_t samplingFrequency       = 400; // Sampling Frequency [Hz]
-uint32_t motorSamplingFrequency  = 50; // [Hz]
-uint32_t motorSamplingDivision   = samplingFrequency/motorSamplingFrequency;
-uint32_t connectionCheckDivision = samplingFrequency; // To check every second !
-
-uint32_t callsNumber  = 0;
-uint32_t callsNumber2 = 0;
-uint32_t callsNumber3 = 0;
+uint32_t AHRSSamplingFrequency   = 400; // [Hz]
+uint32_t motorSamplingFrequency  = 50;  // [Hz]
+uint32_t sonarSamplingFrequency  = 5;   // [Hz]
 
 bool bSendAHRS    = false;
 bool bSendMotors  = false;
-bool bChangeSpeed = false;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef  hdma_usart2_tx;
@@ -197,7 +191,7 @@ Init() {
     SystemClock_Config(); // Initialize System Clock
     GPIO_Init();          // Initialize On Board Peripherals
     SerialPort_Init();    // Initialize the Serial Communication Port (/dev/ttyACM0)
-/*
+
     // Initialize Left Motor and relative Encoder
     leftEncoder.init();
     leftEncoder.start();
@@ -206,9 +200,9 @@ Init() {
     rightEncoder.init();
     rightEncoder.start();
     rightMotor.init();
-*/
+
     SamplingTimer_init(); // Initialize the Periodic Samplig Timer
-/*
+
     // 10DOF Sensor Initialization
     I2C1_Init();
     bAHRSpresent = Sensors_Init();
@@ -220,14 +214,17 @@ Init() {
     pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
 
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
-*/
-    // Start the Periodic Sampling of AHRS and Motors
-    HAL_TIM_Base_Start_IT(&samplingTimer);
 
-    sprintf((char *)&txBuffer[0], "testTIM2\n");
-    bTxUartReady = false;
-    if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
+    // Start the Periodic Sampling of AHRS, Motors and Sonar
+    if(HAL_TIM_OC_Start_IT(&samplingTimer, TIM_CHANNEL_1) != HAL_OK) {
         Error_Handler();
+    }
+    if(HAL_TIM_OC_Start_IT(&samplingTimer, TIM_CHANNEL_2) != HAL_OK) {
+        Error_Handler();
+    }
+    if(HAL_TIM_OC_Start_IT(&samplingTimer, TIM_CHANNEL_3) != HAL_OK) {
+        Error_Handler();
+    }
 }
 
 
@@ -278,7 +275,7 @@ Wait4Connection() {
 static void
 Loop() {
     while(true) {
-/*
+
         if(!bConnected) {
             pLeftControlledMotor->Stop();
             Wait4Connection();
@@ -321,7 +318,7 @@ Loop() {
             if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
                 Error_Handler();
         }
-*/
+
     } // while(true)
 }
 ///=======================================================================
@@ -349,51 +346,47 @@ I2C1_Init(void) {
 // Check: http://00xnor.blogspot.com/2014/01/3-stm32-f4-general-purpose-timers.html
 static void
 SamplingTimer_init(void) {
-#define   APB1_FREQ        50000000                           // Clock driving TIM2
-#define   CNT_FREQ         10000000                           // TIM3 counter clock (prescaled APB1)
-#define   IT_PER_SEC       1000                               // Interrupts per second
-#define   TIM2_PULSE       ((CNT_FREQ) / (IT_PER_SEC))        // Output compare reg value
-#define   TIM_PRESCALER    (((APB1_FREQ) / (CNT_FREQ))-1)     // APB1 prescaler
-
-    TIM_ClockConfigTypeDef sClockSourceConfig;
-    TIM_MasterConfigTypeDef sMasterConfig;
-    memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
-    memset(&sMasterConfig,      0, sizeof(sMasterConfig));
-
     __HAL_RCC_TIM2_CLK_ENABLE();
 
-    // Time base configuration (based on 100 MHz CPU frequency)
-    const uint32_t counterClock = SystemCoreClock/100;// 1MHz;
+    uint32_t counterClock = 1000000;
     // Prescaler value to have a 1MHz TIM2 Input Counter Clock
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/counterClock)-1;
 
     samplingTimer.Instance = TIM2;
-    samplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // No Clock Division
-    samplingTimer.Init.Period            = 0xFFFF; // (Sampling period) / (Clock Period)
+    samplingTimer.Init.Period            = 0xFFFFFFFF;             // ARR register
+    samplingTimer.Init.Prescaler         = uwPrescalerValue;       // PSC
+    samplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // (0) No Clock Division
     samplingTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    samplingTimer.Init.Prescaler         = TIM_PRESCALER;
     samplingTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-
-    if(HAL_TIM_Base_Init(&samplingTimer) != HAL_OK)
+    if(HAL_TIM_OC_Init(&samplingTimer) != HAL_OK)
         Error_Handler();
 
+    TIM_ClockConfigTypeDef sClockSourceConfig;
+    memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
     sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
     if(HAL_TIM_ConfigClockSource(&samplingTimer, &sClockSourceConfig) != HAL_OK)
         Error_Handler();
 
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&samplingTimer, &sMasterConfig) != HAL_OK)
-        Error_Handler();
+    TIM_OC_InitTypeDef sConfigOC;
+    memset(&sConfigOC, 0, sizeof(sConfigOC));
+    sConfigOC.OCMode     = TIM_OCMODE_TIMING;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 
-//    HAL_TIM_OCInitTypeDef TIM2_OC;                            // Output Compare structure
-//    TIM2_OC.TIM_OCMode      = TIM_OCMode_Toggle;                // Output compare toggling mode
-//    TIM2_OC.TIM_OutputState = TIM_OutputState_Enable;           // Enabling the Output Compare state
-//    TIM2_OC.TIM_OCPolarity  = TIM_OCPolarity_Low;               // Reverse polarity
-//    TIM2_OC.TIM_Pulse       = TIM3_PULSE;
-//    // Output Compare 1 reg value
-//    HAL_TIM_OC1Init(TIM3, &TIM3_OC);                                // Initializing Output Compare 1 structure
-//    TIM_OC1PreloadConfig(TIM3, TIM_OCPreload_Disable);          // Disabling Ch.1 Output Compare preload
+    sConfigOC.Pulse      = counterClock/AHRSSamplingFrequency;
+    if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
+        Error_Handler();
+    }
+
+    sConfigOC.Pulse      = counterClock/motorSamplingFrequency;
+    if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
+        Error_Handler();
+    }
+
+    sConfigOC.Pulse      = counterClock/sonarSamplingFrequency;
+    if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_3) != HAL_OK) {
+        Error_Handler();
+    }
 
     HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
@@ -516,7 +509,7 @@ Sensors_Init() {
 
 void
 AHRS_Init_Position() {
-    Madgwick.begin(float(samplingFrequency));
+    Madgwick.begin(float(AHRSSamplingFrequency));
 // Get the first Sensor data
     while(!Acc.getInterruptSource(7)) {}
     Acc.get_Gxyz(&AHRSvalues[0]);
@@ -536,7 +529,6 @@ AHRS_Init_Position() {
 void
 ExecCommand() {
     if(command[0] == 'K') { // Keep Alive
-        callsNumber3 = 0;
         bConnected = true;
         return;
     }
@@ -589,38 +581,41 @@ ExecCommand() {
 // To handle the TIM2 (Periodic Sampler) interrupt.
 void
 TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
-    // Are we Still Connected ?
-    ++callsNumber3;
-    callsNumber3 = callsNumber3 % connectionCheckDivision;
-    if(callsNumber3 == 0)
-        bConnected = false;
+    HAL_TIM_IRQHandler(&samplingTimer);
+}
 
-    // Do we have to Change motor Speed ?
-    ++callsNumber2;
-    callsNumber2 = callsNumber2 % 1200;
-    if(callsNumber2 == 0)
-        bChangeSpeed = true;
 
-    // Is it time to Update Motors Data ?
-    ++callsNumber;
-    callsNumber = callsNumber % motorSamplingDivision;
-    if(callsNumber == 0) {
-        if(pLeftControlledMotor)
+void
+HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
+    if(samplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_1) { // Is it time to Update AHRS Data ?
+        htim->Instance->CCR1 += 1000000/AHRSSamplingFrequency;
+        if(bAHRSpresent) {
+            Acc.get_Gxyz(&AHRSvalues[0]);
+            Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
+            Magn.ReadScaledAxis(&AHRSvalues[6]);
+            for(int i=0; i<3; i++) // ~13us per call...
+                Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
+                                AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
+                                AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
+            bSendAHRS = true;
+        }
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    }
+    else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) { // Is it time to Update Motors Data ?
+        htim->Instance->CCR2 += 1000000/motorSamplingFrequency;
+        if(pLeftControlledMotor) {
             pLeftControlledMotor->Update();
-        bSendMotors = true;
+            bSendMotors = true;
+        }
+        if(pRightControlledMotor) {
+            pRightControlledMotor->Update();
+            bSendMotors = true;
+        }
     }
-
-    if(bAHRSpresent) {// Is it time to Update AHRS Data ?
-        Acc.get_Gxyz(&AHRSvalues[0]);
-        Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
-        Magn.ReadScaledAxis(&AHRSvalues[6]);
-        for(int i=0; i<3; i++) // ~13us per call...
-            Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
-                            AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
-                            AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
-        bSendAHRS = true;
+    else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) { // Is it time to Update Sonar Data ?
+        htim->Instance->CCR3 += 1000000/sonarSamplingFrequency;
+        bConnected = false; // Are we Still Connected ?
     }
-    __HAL_TIM_CLEAR_IT(&samplingTimer, uint32_t(TIM_IT_UPDATE));
 }
 
 
@@ -713,6 +708,7 @@ HCSR04_Read(void) {
     __HAL_TIM_ENABLE_IT(&radarTimer, TIM_IT_CC1);
 }
 
+
 static void
 MX_TIM1_Init(void) {
     TIM_MasterConfigTypeDef sMasterConfig;
@@ -799,8 +795,7 @@ HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 }
 */
 
-// UART error callbacks
-// UartHandle: UART handle
+
 void
 HAL_UART_ErrorCallback(UART_HandleTypeDef *UartHandle) {
     (void)UartHandle;
