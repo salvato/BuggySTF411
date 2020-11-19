@@ -149,7 +149,7 @@ static volatile float AHRSvalues[9];
 double counterClock = 1000000.0;
 uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
-uint32_t sonarSamplingFrequency  = 1;   // [Hz]
+uint32_t sonarSamplingFrequency  = 5;   // [Hz]
 
 uint32_t AHRSSamplingPeriod  = uint32_t(counterClock/AHRSSamplingFrequency+0.5);  // [Hz]
 uint32_t motorSamplingPeriod = uint32_t(counterClock/motorSamplingFrequency+0.5); // [Hz]
@@ -175,7 +175,8 @@ volatile bool bRxUartReady;
 volatile bool bRxComplete;
 
 volatile bool bConnected;
-
+volatile bool bNewConnectionStatus = false;
+volatile bool bOldConnectionStatus = bNewConnectionStatus;
 
 //====================================
 // Private function prototypes
@@ -590,7 +591,7 @@ ExecCommand() {
     return;
 }
 
-
+// To be changed with a Pulsing Timer !!!
 void
 HCSR04_Read(void) {
     HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
@@ -635,7 +636,10 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) { // Is it time to Update Sonar Data ? 1Hz
         htim->Instance->CCR3 += sonarSamplingPeriod;
-        bConnected = false; // Preparing to check if we are Still Connected ?
+        if(bOldConnectionStatus != bNewConnectionStatus)
+            bConnected = false;
+        else
+            bOldConnectionStatus = !bOldConnectionStatus;
     }
 }
 
@@ -669,6 +673,7 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
 void
 HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
     (void)UartHandle;
+    bOldConnectionStatus = bNewConnectionStatus;
     if(inChar == '\n') {
         int i = 0;
         int index = rxBufferStart;

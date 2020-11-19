@@ -23,7 +23,7 @@ Encoder::start() {
 
 double
 Encoder::read() { // in Giri Motore
-    int16_t counts = int16_t(timer->CNT);
+    int16_t counts = int16_t(htimer.Instance->CNT);
     total += counts;
     return double(counts)/CountsPerTurn;
 }
@@ -31,7 +31,7 @@ Encoder::read() { // in Giri Motore
 
 void
 Encoder::reset() {
-    TIM1->CNT = 0;
+    htimer.Instance->CNT = 0;
 }
 
 
@@ -57,9 +57,9 @@ Encoder::readAndResetTotal() {
 
 double
 Encoder::readAndReset() { // in Giri Motore
-    int16_t counts = int16_t(timer->CNT);
+    int16_t counts = int16_t(htimer.Instance->CNT);
     total += counts;
-    TIM1->CNT = 0;
+    htimer.Instance->CNT = 0;
     return double(counts)/CountsPerTurn;
 }
 
@@ -101,7 +101,7 @@ Encoder::init() {
     sConfig.IC2Polarity  = TIM_ICPOLARITY_RISING;
     sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
     sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
-    sConfig.IC2Filter   = 0;
+    sConfig.IC2Filter    = 0;
     HAL_TIM_Encoder_Init(&htimer, &sConfig);
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
