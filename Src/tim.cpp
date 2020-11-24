@@ -150,33 +150,26 @@ PwmTimerInit(void) {
     hPwmTimer.Init.Period            = 254;
     hPwmTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     hPwmTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if(HAL_TIM_Base_Init(&hPwmTimer) != HAL_OK) {
-        Error_Handler();
-    }
-    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    if(HAL_TIM_ConfigClockSource(&hPwmTimer, &sClockSourceConfig) != HAL_OK) {
-        Error_Handler();
-    }
     if(HAL_TIM_PWM_Init(&hPwmTimer) != HAL_OK) {
-        Error_Handler();
-    }
-
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&hPwmTimer, &sMasterConfig) != HAL_OK) {
         Error_Handler();
     }
 
     sConfigOC.OCMode     = TIM_OCMODE_PWM1;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-    sConfigOC.Pulse      = 0;
+    sConfigOC.Pulse      = 128;
 
     if (HAL_TIM_PWM_ConfigChannel(&hPwmTimer, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
         Error_Handler();
     }
     if (HAL_TIM_PWM_ConfigChannel(&hPwmTimer, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
+    }
+    if (HAL_TIM_PWM_Start(&hPwmTimer, TIM_CHANNEL_1) != HAL_OK) {
+      Error_Handler();
+    }
+    if (HAL_TIM_PWM_Start(&hPwmTimer, TIM_CHANNEL_2) != HAL_OK) {
+      Error_Handler();
     }
 }
 
