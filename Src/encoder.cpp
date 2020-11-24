@@ -12,6 +12,7 @@ Encoder::Encoder(TIM_HandleTypeDef *hEncodertimer)
     : htimer(hEncodertimer)
     , total(0)
 {
+    start();
 }
 
 

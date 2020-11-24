@@ -112,8 +112,8 @@
 
 #define SONAR_TRIG_PIN  GPIO_PIN_9
 #define SONAR_TRIG_PORT GPIOA
-#define ECHO_PIN  GPIO_PIN_8
-#define ECHO_PORT GPIOA
+#define ECHO_PIN        GPIO_PIN_8
+#define ECHO_PORT       GPIOA
 
 // defined in tim.h
 extern TIM_HandleTypeDef hLeftEncodertimer;
@@ -130,10 +130,10 @@ extern double periodicCounterClock;// 1MHz
 
 I2C_HandleTypeDef hi2c1;
 
-Encoder* pLeftEncoder  = nullptr;
-Encoder* pRightEncoder = nullptr;
-DcMotor* pLeftMotor    = nullptr;
-DcMotor* pRightMotor   = nullptr;
+Encoder*         pLeftEncoder          = nullptr;
+Encoder*         pRightEncoder         = nullptr;
+DcMotor*         pLeftMotor            = nullptr;
+DcMotor*         pRightMotor           = nullptr;
 ControlledMotor* pLeftControlledMotor  = nullptr;
 ControlledMotor* pRightControlledMotor = nullptr;
 
@@ -151,7 +151,7 @@ uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
 uint32_t sonarSamplingFrequency  = 5;   // [Hz]
 
-uint32_t AHRSSamplingPeriod  = uint32_t(periodicCounterClock/AHRSSamplingFrequency+0.5);  // [Hz]
+uint32_t AHRSSamplingPeriod  = uint32_t(periodicCounterClock/AHRSSamplingFrequency +0.5);  // [Hz]
 uint32_t motorSamplingPeriod = uint32_t(periodicCounterClock/motorSamplingFrequency+0.5); // [Hz]
 uint32_t sonarSamplingPeriod = uint32_t(periodicCounterClock/sonarSamplingFrequency+0.5); // [Hz]
 
@@ -174,18 +174,19 @@ volatile bool bTxUartReady;
 volatile bool bRxUartReady;
 volatile bool bRxComplete;
 
-volatile bool bConnected;
+volatile bool bConnected           = false;
 volatile bool bNewConnectionStatus = false;
 volatile bool bOldConnectionStatus = bNewConnectionStatus;
 
 /* Captured Values */
-uint32_t uwIC2Value1 = 0;
-uint32_t uwIC2Value2 = 0;
-uint32_t uwDiffCapture = 0;
+uint32_t uwIC2Value1    = 0;
+uint32_t uwIC2Value2    = 0;
+uint32_t uwDiffCapture  = 0;
 /* Capture index */
 uint16_t uhCaptureIndex = 0;
 /* Frequency Value */
-uint32_t uwFrequency = 0;
+uint32_t uwFrequency    = 0;
+
 
 //====================================
 // Private function prototypes
@@ -214,16 +215,12 @@ Init() {
     GPIO_Init();          // Initialize On Board Peripherals
     SerialPort_Init();    // Initialize the Serial Communication Port (/dev/ttyACM0)
 
-    // Initialize Left Motor and relative Encoder
-    LeftEncoderTimerInit();
+    LeftEncoderTimerInit(); // Initialize Left Motor Encoder
     pLeftEncoder = new Encoder(&hLeftEncodertimer);
-    pLeftEncoder->start();
-
-    // Initialize Right Motor and relative Encoder
-    RightEncoderTimerInit();
+    RightEncoderTimerInit(); // Initialize Right Motor Encoder
     pRightEncoder = new Encoder(&hRightEncodertimer);
-    pRightEncoder->start();
 
+    PwmTimerInit(); // Initialize the Dc Motors
     // DcMotor(forwardPort, forwardPin, reversePort,  reversePin,
     //         pwmPort,  pwmPin, pwmTimer)
     pLeftMotor = new DcMotor(GPIOC, GPIO_PIN_8, GPIOC, GPIO_PIN_9,
@@ -232,24 +229,22 @@ Init() {
                               GPIOA, GPIO_PIN_7, &hPwmTimer, TIM_CHANNEL_2);
 
     // Initialize the Periodic Samplig Timer
-    SamplingTimerInit(AHRSSamplingPeriod,
-                      motorSamplingPeriod,
-                      sonarSamplingPeriod);
-    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(TIM2_IRQn);
+    SamplingTimerInit(AHRSSamplingPeriod, motorSamplingPeriod, sonarSamplingPeriod);
 
-    // 10DOF Sensor Initialization
-    I2C1_Init();
+    I2C1_Init(); // Initialize the 10DOF Sensor
     bAHRSpresent = AHRS_Init();
     if(bAHRSpresent) // 10DOF Sensor Position Initialization
         AHRS_Init_Position();
 
     // Initialize Motor Controllers
-    PwmTimerInit();
     pLeftControlledMotor  = new ControlledMotor(pLeftMotor,  pLeftEncoder,  motorSamplingFrequency);
 //    pRightControlledMotor = new ControlledMotor(pRightMotor, pRightEncoder, motorSamplingFrequency);
 
-    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
+    EchoTimerInit();
+
+    // Start the Periodic Samplig Timer
+    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
     // Start the Periodic Sampling of AHRS, Motors and Sonar
     if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_1) != HAL_OK) {
@@ -258,10 +253,11 @@ Init() {
     if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
     }
-    EchoTimerInit();
     if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_3) != HAL_OK) {
         Error_Handler();
     }
+
+    HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); // Enable and set Button EXTI Interrupt
 
     HAL_NVIC_SetPriority(TIM1_TRG_COM_TIM11_IRQn, 0, 1);
     HAL_NVIC_EnableIRQ(TIM1_TRG_COM_TIM11_IRQn);
@@ -320,10 +316,12 @@ Loop() {
         if(!bConnected) { // Asyncronously Changed Via Interrupts
             if(pLeftControlledMotor)
                 pLeftControlledMotor->Stop();
+            if(pRightControlledMotor)
+                pRightControlledMotor->Stop();
             Wait4Connection(); // Blocking Call...
         }
 
-        // Transmit new Data only if previous ones were sent
+        // Transmit new Data only if the previous ones were sent
         if(bTxUartReady) {
             len = 0;
             if(bSendAHRS) {
