@@ -178,6 +178,15 @@ volatile bool bConnected;
 volatile bool bNewConnectionStatus = false;
 volatile bool bOldConnectionStatus = bNewConnectionStatus;
 
+/* Captured Values */
+uint32_t uwIC2Value1 = 0;
+uint32_t uwIC2Value2 = 0;
+uint32_t uwDiffCapture = 0;
+/* Capture index */
+uint16_t uhCaptureIndex = 0;
+/* Frequency Value */
+uint32_t uwFrequency = 0;
+
 //====================================
 // Private function prototypes
 //====================================
@@ -249,9 +258,13 @@ Init() {
     if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
     }
+    EchoTimerInit();
     if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_3) != HAL_OK) {
         Error_Handler();
     }
+
+    HAL_NVIC_SetPriority(TIM1_TRG_COM_TIM11_IRQn, 0, 1);
+    HAL_NVIC_EnableIRQ(TIM1_TRG_COM_TIM11_IRQn);
 }
 
 
@@ -564,6 +577,49 @@ HCSR04_Read(void) {
 //    HAL_Delay(1);  // <<<<<<<<<<<<============== wait for 10 us
 //    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
 //    __HAL_TIM_ENABLE_IT(&sonarTimer, TIM_IT_CC1);
+    /*##-3- Start the Input Capture in interrupt mode ##########################*/
+    if(HAL_TIM_IC_Start_IT(&hSonarTimer, TIM_CHANNEL_1) != HAL_OK) {
+      Error_Handler();
+    }
+}
+
+
+/**
+  * @brief  Conversion complete callback in non blocking mode
+  * @param  htim : hadc handle
+  * @retval None
+  */
+void
+HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+  if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
+    if(uhCaptureIndex == 0) {
+      /* Get the 1st Input Capture value */
+      uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+      uhCaptureIndex = 1;
+    }
+    else if(uhCaptureIndex == 1) {
+      /* Get the 2nd Input Capture value */
+      uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+
+      /* Capture computation */
+      if(uwIC2Value2 > uwIC2Value1) {
+        uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
+      }
+      else if(uwIC2Value2 < uwIC2Value1) {
+        /* 0xFFFF is max TIM3_CCRx value */
+        uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
+      }
+      else {
+        /* If capture values are equal, we have reached the limit of frequency
+           measures */
+        Error_Handler();
+      }
+      /* Frequency computation: for this example TIMx (TIM3) is clocked by
+         2xAPB1Clk */
+      uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture;
+      uhCaptureIndex = 0;
+    }
+  }
 }
 
 
@@ -571,6 +627,12 @@ HCSR04_Read(void) {
 void
 TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
     HAL_TIM_IRQHandler(&hSamplingTimer);
+}
+
+
+void
+TIM1_TRG_COM_TIM11_IRQHandler(void) {
+    HAL_TIM_IRQHandler(&hSonarTimer);
 }
 
 

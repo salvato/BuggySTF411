@@ -175,6 +175,42 @@ PwmTimerInit(void) {
 
 
 void
+EchoTimerInit() {
+    __HAL_RCC_TIM11_CLK_ENABLE();
+    initTim11GPIO();
+
+    /*##-1- Configure the TIM peripheral #######################################*/
+    /* TIM3 configuration: Input Capture mode ---------------------
+       The external signal is connected to TIM11 CH1 pin (PB.09)
+       The Rising edge is used as active edge,
+       The TIM3 CCR2 is used to compute the frequency value
+    ------------------------------------------------------------ */
+    hSonarTimer.Instance = TIM11;
+    hSonarTimer.Init.Period            = 0xFFFF;
+    hSonarTimer.Init.Prescaler         = 0;
+    hSonarTimer.Init.ClockDivision     = 0;
+    hSonarTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    hSonarTimer.Init.RepetitionCounter = 0;
+    hSonarTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if(HAL_TIM_IC_Init(&hSonarTimer) != HAL_OK) {
+      Error_Handler();
+    }
+
+    /*##-2- Configure the Input Capture channel ################################*/
+    /* Configure the Input Capture of channel 1 */
+    TIM_IC_InitTypeDef  sICConfig;
+    sICConfig.ICPolarity  = TIM_ICPOLARITY_RISING;
+    sICConfig.ICSelection = TIM_ICSELECTION_DIRECTTI;
+    sICConfig.ICPrescaler = TIM_ICPSC_DIV1;
+    sICConfig.ICFilter    = 0;
+    if(HAL_TIM_IC_ConfigChannel(&hSonarTimer, &sICConfig, TIM_CHANNEL_1) != HAL_OK) {
+      /* Configuration Error */
+      Error_Handler();
+    }
+}
+
+
+void
 initTim1GPIO() {
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
@@ -221,5 +257,21 @@ initTim4GPIO() {
     GPIO_InitStruct.Pull      = GPIO_NOPULL;
     GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+
+void
+initTim11GPIO() {
+    GPIO_InitTypeDef   GPIO_InitStruct;
+    memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    /* Configure  (TIMx_Channel) in Alternate function, push-pull and high speed */
+    GPIO_InitStruct.Pin       = GPIO_PIN_9;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull      = GPIO_PULLUP;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF3_TIM11;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
