@@ -5,8 +5,7 @@
 class Encoder
 {
 public:
-    Encoder(TIM_TypeDef* _timer);
-    void    init();
+    Encoder(TIM_HandleTypeDef* hEncodertimer);
     void    start();
     double  read();
     void    reset();
@@ -16,10 +15,7 @@ public:
     int32_t readAndResetTotal();
 
 private:
-    void    initGPIO();
-
-private:
-    TIM_TypeDef*      timer;
-    TIM_HandleTypeDef htimer;
-    uint32_t          total;
+    TIM_HandleTypeDef* htimer;
+    uint32_t           encoderChannel;
+    uint32_t           total;
 };

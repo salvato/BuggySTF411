@@ -89,6 +89,7 @@
 */
 
 #include "main.h"
+#include "tim.h"
 #include "utility.h"
 #include "encoder.h"
 #include "dcmotor.h"
@@ -114,26 +115,32 @@
 #define ECHO_PIN  GPIO_PIN_8
 #define ECHO_PORT GPIOA
 
+// defined in tim.h
+extern TIM_HandleTypeDef hLeftEncodertimer;
+extern TIM_HandleTypeDef hSamplingTimer;
+extern TIM_HandleTypeDef hPwmTimer;
+extern TIM_HandleTypeDef hRightEncodertimer;
+extern TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
+
+extern double periodicCounterClock;// 1MHz
 
 //==================
 // Private variables
 //==================
 
 I2C_HandleTypeDef hi2c1;
-TIM_HandleTypeDef samplingTimer; // Samplig Timer
-TIM_HandleTypeDef sonarTimer;    // To Measure the Radar Echo Pulse Duration
 
-Encoder leftEncoder(TIM1);
-Encoder rightEncoder(TIM4);
+Encoder leftEncoder(&hLeftEncodertimer);
+Encoder rightEncoder(&hRightEncodertimer);
 
 // DcMotor(forwardPort, forwardPin, reversePort,  reversePin,
 //         pwmPort,  pwmPin, pwmTimer)
 
 DcMotor leftMotor(GPIOC, GPIO_PIN_8, GPIOC, GPIO_PIN_9,
-                  GPIOA, GPIO_PIN_6, TIM3);
+                  GPIOA, GPIO_PIN_6, &hPwmTimer, TIM_CHANNEL_1);
 
 DcMotor rightMotor(GPIOC, GPIO_PIN_10, GPIOC, GPIO_PIN_11,
-                   GPIOA, GPIO_PIN_7, TIM3);
+                   GPIOA, GPIO_PIN_7, &hPwmTimer, TIM_CHANNEL_2);
 
 ControlledMotor* pLeftControlledMotor  = nullptr;
 ControlledMotor* pRightControlledMotor = nullptr;
@@ -146,14 +153,14 @@ Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
 static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
-double counterClock = 1000000.0;
+
 uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
 uint32_t sonarSamplingFrequency  = 5;   // [Hz]
 
-uint32_t AHRSSamplingPeriod  = uint32_t(counterClock/AHRSSamplingFrequency+0.5);  // [Hz]
-uint32_t motorSamplingPeriod = uint32_t(counterClock/motorSamplingFrequency+0.5); // [Hz]
-uint32_t sonarSamplingPeriod = uint32_t(counterClock/sonarSamplingFrequency+0.5); // [Hz]
+uint32_t AHRSSamplingPeriod  = uint32_t(periodicCounterClock/AHRSSamplingFrequency+0.5);  // [Hz]
+uint32_t motorSamplingPeriod = uint32_t(periodicCounterClock/motorSamplingFrequency+0.5); // [Hz]
+uint32_t sonarSamplingPeriod = uint32_t(periodicCounterClock/sonarSamplingFrequency+0.5); // [Hz]
 
 bool bSendAHRS    = false;
 bool bSendMotors  = false;
@@ -184,7 +191,6 @@ volatile bool bOldConnectionStatus = bNewConnectionStatus;
 static void Init();
 static void Loop();
 static void I2C1_Init(void);
-static void SamplingTimer_init(void);
 static void SerialPort_Init(void);
 static bool AHRS_Init();
 static void AHRS_Init_Position();
@@ -207,15 +213,18 @@ Init() {
     SerialPort_Init();    // Initialize the Serial Communication Port (/dev/ttyACM0)
 
     // Initialize Left Motor and relative Encoder
-    leftEncoder.init();
+    LeftEncoderTimerInit();
     leftEncoder.start();
-    leftMotor.init();
     // Initialize Right Motor and relative Encoder
-    rightEncoder.init();
+    RightEncoderTimerInit();
     rightEncoder.start();
-    rightMotor.init();
 
-    SamplingTimer_init(); // Initialize the Periodic Samplig Timer
+    // Initialize the Periodic Samplig Timer
+    SamplingTimerInit(AHRSSamplingPeriod,
+                      motorSamplingPeriod,
+                      sonarSamplingPeriod);
+    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
     // 10DOF Sensor Initialization
     I2C1_Init();
@@ -224,19 +233,20 @@ Init() {
         AHRS_Init_Position();
 
     // Initialize Motor Controllers
+    PwmTimerInit();
     pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
 //    pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
 
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
 
     // Start the Periodic Sampling of AHRS, Motors and Sonar
-    if(HAL_TIM_OC_Start_IT(&samplingTimer, TIM_CHANNEL_1) != HAL_OK) {
+    if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_1) != HAL_OK) {
         Error_Handler();
     }
-    if(HAL_TIM_OC_Start_IT(&samplingTimer, TIM_CHANNEL_2) != HAL_OK) {
+    if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
     }
-    if(HAL_TIM_OC_Start_IT(&samplingTimer, TIM_CHANNEL_3) != HAL_OK) {
+    if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_3) != HAL_OK) {
         Error_Handler();
     }
 }
@@ -292,7 +302,8 @@ Loop() {
     while(true) {
         // Wait Until Connected With Remote
         if(!bConnected) { // Asyncronously Changed Via Interrupts
-            pLeftControlledMotor->Stop();
+            if(pLeftControlledMotor)
+                pLeftControlledMotor->Stop();
             Wait4Connection(); // Blocking Call...
         }
 
@@ -318,7 +329,7 @@ Loop() {
                 if(HAL_UART_Transmit_DMA(&huart2, txBuffer, len) != HAL_OK)
                     Error_Handler();
             }
-            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+//            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         } // if(bTxUartReady)
 
         if(bRxUartReady) {
@@ -356,54 +367,6 @@ I2C1_Init(void) {
     if(HAL_I2C_Init(&hi2c1) != HAL_OK) {
         Error_Handler();
     }
-}
-
-
-static void
-SamplingTimer_init(void) {
-    __HAL_RCC_TIM2_CLK_ENABLE();
-
-    // Prescaler value to have a 1MHz TIM2 Input Counter Clock
-    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/counterClock)-1;
-
-    samplingTimer.Instance = TIM2;
-    samplingTimer.Init.Period            = 0xFFFFFFFF;             // ARR register
-    samplingTimer.Init.Prescaler         = uwPrescalerValue;       // PSC
-    samplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // (0) No Clock Division
-    samplingTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    samplingTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if(HAL_TIM_OC_Init(&samplingTimer) != HAL_OK)
-        Error_Handler();
-
-    TIM_ClockConfigTypeDef sClockSourceConfig;
-    memset(&sClockSourceConfig, 0, sizeof(sClockSourceConfig));
-    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-    if(HAL_TIM_ConfigClockSource(&samplingTimer, &sClockSourceConfig) != HAL_OK)
-        Error_Handler();
-
-    TIM_OC_InitTypeDef sConfigOC;
-    memset(&sConfigOC, 0, sizeof(sConfigOC));
-    sConfigOC.OCMode     = TIM_OCMODE_TIMING;
-    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-
-    sConfigOC.Pulse = AHRSSamplingPeriod;
-    if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
-        Error_Handler();
-    }
-
-    sConfigOC.Pulse = motorSamplingPeriod;
-    if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
-        Error_Handler();
-    }
-
-    sConfigOC.Pulse = sonarSamplingPeriod;
-    if(HAL_TIM_OC_ConfigChannel(&samplingTimer, &sConfigOC, TIM_CHANNEL_3) != HAL_OK) {
-        Error_Handler();
-    }
-
-    HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(TIM2_IRQn);
 }
 
 
@@ -594,23 +557,24 @@ ExecCommand() {
 // To be changed with a Pulsing Timer !!!
 void
 HCSR04_Read(void) {
-    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
-    HAL_Delay(1);  // <<<<<<<<<<<<============== wait for 10 us
-    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
-    __HAL_TIM_ENABLE_IT(&sonarTimer, TIM_IT_CC1);
+//    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
+//    HAL_Delay(1);  // <<<<<<<<<<<<============== wait for 10 us
+//    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
+//    __HAL_TIM_ENABLE_IT(&sonarTimer, TIM_IT_CC1);
 }
 
 
 // To handle the TIM2 (Periodic Sampler) interrupt.
 void
 TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
-    HAL_TIM_IRQHandler(&samplingTimer);
+    HAL_TIM_IRQHandler(&hSamplingTimer);
 }
 
 
+ // To Restart Periodic Timers
 void
 HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
-    if(samplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_1) { // Is it time to Update AHRS Data ?
+    if(hSamplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_1) { // Is it time to Update AHRS Data ?
         htim->Instance->CCR1 += AHRSSamplingPeriod;
         if(bAHRSpresent) {
             Acc.get_Gxyz(&AHRSvalues[0]);
@@ -622,6 +586,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
                                 AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
             bSendAHRS = true;
         }
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) { // Is it time to Update Motors Data ?
         htim->Instance->CCR2 += motorSamplingPeriod;
