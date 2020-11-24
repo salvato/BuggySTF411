@@ -24,25 +24,27 @@ GPIO_Init(void) {
 
     HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
+    // Push Button
     GPIO_InitStruct.Pin  = B1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
     HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
 
+    // Led On Board
     GPIO_InitStruct.Pin   = LD2_Pin;
     GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
     GPIO_InitStruct.Pull  = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+    // Left Motor IN1
     GPIO_InitStruct.Pin   = GPIO_PIN_8;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+    // Left Motor IN2
     GPIO_InitStruct.Pin   = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
 }
 
 
