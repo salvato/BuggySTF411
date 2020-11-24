@@ -130,22 +130,15 @@ extern double periodicCounterClock;// 1MHz
 
 I2C_HandleTypeDef hi2c1;
 
-Encoder leftEncoder(&hLeftEncodertimer);
-Encoder rightEncoder(&hRightEncodertimer);
-
-// DcMotor(forwardPort, forwardPin, reversePort,  reversePin,
-//         pwmPort,  pwmPin, pwmTimer)
-
-DcMotor leftMotor(GPIOC, GPIO_PIN_8, GPIOC, GPIO_PIN_9,
-                  GPIOA, GPIO_PIN_6, &hPwmTimer, TIM_CHANNEL_1);
-
-DcMotor rightMotor(GPIOC, GPIO_PIN_10, GPIOC, GPIO_PIN_11,
-                   GPIOA, GPIO_PIN_7, &hPwmTimer, TIM_CHANNEL_2);
-
+Encoder* pLeftEncoder  = nullptr;
+Encoder* pRightEncoder = nullptr;
+DcMotor* pLeftMotor    = nullptr;
+DcMotor* pRightMotor   = nullptr;
 ControlledMotor* pLeftControlledMotor  = nullptr;
 ControlledMotor* pRightControlledMotor = nullptr;
 
-bool bAHRSpresent;
+
+bool bAHRSpresent = false;
 ADXL345  Acc;      // 400KHz I2C Capable. Maximum Output Data Rate is 800 Hz
 ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
@@ -214,10 +207,20 @@ Init() {
 
     // Initialize Left Motor and relative Encoder
     LeftEncoderTimerInit();
-    leftEncoder.start();
+    pLeftEncoder = new Encoder(&hLeftEncodertimer);
+    pLeftEncoder->start();
+
     // Initialize Right Motor and relative Encoder
     RightEncoderTimerInit();
-    rightEncoder.start();
+    pRightEncoder = new Encoder(&hRightEncodertimer);
+    pRightEncoder->start();
+
+    // DcMotor(forwardPort, forwardPin, reversePort,  reversePin,
+    //         pwmPort,  pwmPin, pwmTimer)
+    pLeftMotor = new DcMotor(GPIOC, GPIO_PIN_8, GPIOC, GPIO_PIN_9,
+                             GPIOA, GPIO_PIN_6, &hPwmTimer, TIM_CHANNEL_1);
+    pRightMotor = new DcMotor(GPIOC, GPIO_PIN_10, GPIOC, GPIO_PIN_11,
+                              GPIOA, GPIO_PIN_7, &hPwmTimer, TIM_CHANNEL_2);
 
     // Initialize the Periodic Samplig Timer
     SamplingTimerInit(AHRSSamplingPeriod,
@@ -234,8 +237,8 @@ Init() {
 
     // Initialize Motor Controllers
     PwmTimerInit();
-    pLeftControlledMotor  = new ControlledMotor(&leftMotor,  &leftEncoder,  motorSamplingFrequency);
-//    pRightControlledMotor = new ControlledMotor(&rightMotor, &rightEncoder, motorSamplingFrequency);
+    pLeftControlledMotor  = new ControlledMotor(pLeftMotor,  pLeftEncoder,  motorSamplingFrequency);
+//    pRightControlledMotor = new ControlledMotor(pRightMotor, pRightEncoder, motorSamplingFrequency);
 
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);// Enable and set Button EXTI Interrupt
 
@@ -329,7 +332,7 @@ Loop() {
                 if(HAL_UART_Transmit_DMA(&huart2, txBuffer, len) != HAL_OK)
                     Error_Handler();
             }
-//            HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+//HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         } // if(bTxUartReady)
 
         if(bRxUartReady) {
