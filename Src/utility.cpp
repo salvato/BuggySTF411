@@ -2,6 +2,22 @@
 #include "stm32f4xx_hal.h"
 #include "string.h" // for memset()
 
+// System Clock Configuration
+//    The system Clock is configured as follow :
+//        System Clock source            = PLL (HSI)
+//        SYSCLK(Hz)                     = 100000000
+//        HCLK(Hz)                       = 100000000
+//        AHB Prescaler                  = 1
+//        APB1 Prescaler                 = 2
+//        APB2 Prescaler                 = 1
+//        HSI Frequency(Hz)              = 16000000
+//        PLL_M                          = 16
+//        PLL_N                          = 400
+//        PLL_P                          = 4
+//        PLL_Q                          = 7
+//        VDD(V)                         = 3.3
+//        Main regulator output voltage  = Scale2 mode
+//        Flash Latency(WS)              = 3
 
 void
 Error_Handler(void) {
@@ -45,25 +61,17 @@ GPIO_Init(void) {
     // Left Motor IN2
     GPIO_InitStruct.Pin   = GPIO_PIN_9;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    // Right Motor IN3
+    GPIO_InitStruct.Pin   = GPIO_PIN_10;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    // Right Motor IN4
+    GPIO_InitStruct.Pin   = GPIO_PIN_11;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 }
 
 
-// System Clock Configuration
-//    The system Clock is configured as follow :
-//        System Clock source            = PLL (HSI)
-//        SYSCLK(Hz)                     = 100000000
-//        HCLK(Hz)                       = 100000000
-//        AHB Prescaler                  = 1
-//        APB1 Prescaler                 = 2
-//        APB2 Prescaler                 = 1
-//        HSI Frequency(Hz)              = 16000000
-//        PLL_M                          = 16
-//        PLL_N                          = 400
-//        PLL_P                          = 4
-//        PLL_Q                          = 7
-//        VDD(V)                         = 3.3
-//        Main regulator output voltage  = Scale2 mode
-//        Flash Latency(WS)              = 3
 void
 SystemClock_Config(void) {
     RCC_OscInitTypeDef RCC_OscInitStruct;
