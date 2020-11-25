@@ -13,12 +13,11 @@ void SamplingTimerInit(uint32_t AHRSSamplingPeriod,
                        uint32_t sonarSamplingPeriod);
 void PwmTimerInit(void);
 void RightEncoderTimerInit(void);
-void EchoTimerInit();
 
 void initTim1GPIO();
 void initTim3GPIO();
 void initTim4GPIO();
-void initTim11GPIO();
+
 #ifdef __cplusplus
 }
 #endif
