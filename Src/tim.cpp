@@ -90,7 +90,7 @@ TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
 double periodicCounterClock = 1.0e6;// 1MHz
 
 
-// Left Encoder
+// Left Encoder (TIM1 - Advanced Timer)
 void
 LeftEncoderTimerInit() {
     __HAL_RCC_TIM1_CLK_ENABLE();
@@ -127,7 +127,7 @@ LeftEncoderTimerInit() {
 }
 
 
-// Right Encoder
+// Right Encoder (TIM4 - 16 bit General Purpose Timer)
 void
 RightEncoderTimerInit(void) {
     __HAL_RCC_TIM4_CLK_ENABLE();
