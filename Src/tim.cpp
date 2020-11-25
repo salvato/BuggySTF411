@@ -1,3 +1,81 @@
+/*
+//=========================================
+// On Board Peripherals
+//=========================================
+// PA5  (CN10 11)   ------> Led On Board
+// PC13 (CN7  23)   ------> Button On Board
+
+
+//===================================
+// USART2 GPIO Configuration
+//===================================
+// GND (CN10 20)    ------> GND
+// PA2 (CN10 35)    ------> USART2_TX
+// PA3 (CN10 37)    ------> USART2_RX
+
+
+//==================================
+// I2C1 GPIO Configuration
+//==================================
+// VIN (CN7  16)    ------> +3.3V
+// GND (CN7  20)    ------> GND
+// PB8 (CN10  3)    ------> I2C1_SCL
+// PB9 (CN10  5)    ------> I2C1_SDA
+
+
+//================================================
+// TIM1 (32 Bit) GPIO Configuration (Left Encoder)
+//================================================
+// PA8 (CN10 21)    ------> TIM1_CH1
+// PA9 (CN10 23)    ------> TIM1_CH2
+
+
+//=================================================
+// TIM4 (32 Bit) GPIO Configuration (Right Encoder)
+//=================================================
+// PB6 (CN10 17)    ------> TIM4_CH1
+// PB7 (CN7  21)    ------> TIM4_CH2
+
+
+//=============================================
+// TIM2 GPIO Configuration (Periodic Interrupt)
+//=============================================
+// No GPIO used
+// Channel1         ------> AHRS Sampling
+// Channel2         ------> Motors Sampling
+// Channel1         ------> Sonar Sampling
+
+
+//==================================
+// TIM3 GPIO Configuration (PWM)
+//==================================
+// PA6 (CN10 13)    ------> TIM3_CH1
+// PA7 (CN10 15)    ------> TIM3_CH2
+
+
+//====================================
+// Left Motor Direction Pins
+// PC8  (CN10  2)    ------> LM298 IN1
+// PC9  (CN10  1)    ------> LM298 IN2
+//====================================
+
+
+//====================================
+// Right Motor Direction Pins
+// PC10 (CN7  1)    ------> LM298 IN3
+// PC11 (CN7  2)    ------> LM298 IN4
+//====================================
+
+//====================================
+// Used Peripherals:
+// Timers:
+//     TIM1 ---> Encoder (Left)
+//     TIM2 ---> Periodic Interrupt
+//     TIM3 ---> PWM (Motors)
+//     TIM4 ---> Encoder (Right)
+//     TIM9 ---> Ultrasound Sensor
+//====================================
+*/
 #include "tim.h"
 #include "utility.h"
 #include "string.h" // for memset()
@@ -261,13 +339,15 @@ initTim4GPIO() {
 }
 
 
+// Conflitto con I2C1_SDA !!!
 void
 initTim11GPIO() {
+#error "Conflitto con I2C1_SDA (PB09)"
     GPIO_InitTypeDef   GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOB_CLK_ENABLE();
-
-    /* Configure  (TIMx_Channel) in Alternate function, push-pull and high speed */
+    // TIM11 GPIO Configuration
+    // PB9      ------> TIM11_CH1
     GPIO_InitStruct.Pin       = GPIO_PIN_9;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull      = GPIO_PULLUP;
