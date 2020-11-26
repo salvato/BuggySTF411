@@ -51,10 +51,9 @@
 //=============================================
 // TIM2 GPIO Configuration (Periodic Interrupt)
 //=============================================
-// No GPIO used
-// Channel1         ------> AHRS Sampling
 // Channel2         ------> Motors Sampling
-// Channel1         ------> Sonar Sampling
+// Channel3         ------> Sonar Sampling
+// Channel4         ------> AHRS Sampling
 
 
 //==================================
@@ -247,7 +246,7 @@ Init() {
     HAL_NVIC_EnableIRQ(TIM2_IRQn);
 
     // Start the Periodic Sampling of AHRS, Motors and Sonar
-    if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_1) != HAL_OK) {
+    if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_4) != HAL_OK) {
         Error_Handler();
     }
     if(HAL_TIM_OC_Start_IT(&hSamplingTimer, TIM_CHANNEL_2) != HAL_OK) {
@@ -683,8 +682,8 @@ TIM1_TRG_COM_TIM11_IRQHandler(void) {
  // To Restart Periodic Timers
 void
 HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
-    if(hSamplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_1) { // Is it time to Update AHRS Data ?
-        htim->Instance->CCR1 += AHRSSamplingPeriod;
+    if(hSamplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_4) { // Is it time to Update AHRS Data ?
+        htim->Instance->CCR4 += AHRSSamplingPeriod;
         if(bAHRSpresent) {
             Acc.get_Gxyz(&AHRSvalues[0]);
             Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);

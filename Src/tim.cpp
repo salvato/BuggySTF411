@@ -40,10 +40,9 @@
 //=============================================
 // TIM2 GPIO Configuration (Periodic Interrupt)
 //=============================================
-// No GPIO used
-// Channel1         ------> AHRS Sampling
 // Channel2         ------> Motors Sampling
-// Channel1         ------> Sonar Sampling
+// Channel3         ------> Sonar Sampling
+// Channel4         ------> AHRS Sampling
 
 
 //==================================
@@ -87,7 +86,7 @@ TIM_HandleTypeDef hPwmTimer;
 TIM_HandleTypeDef hRightEncodertimer;
 TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
 
-double periodicCounterClock = 1.0e6;// 1MHz
+double periodicCounterClock = 10.0e6;// 1MHz
 
 
 // Left Encoder (TIM1 - Advanced Timer)
@@ -139,7 +138,7 @@ SamplingTimerInit(uint32_t AHRSSamplingPeriod,
 {
     __HAL_RCC_TIM2_CLK_ENABLE();
 
-    // Prescaler value to have a 1MHz TIM2 Input Counter Clock
+    // Prescaler value to have a 10MHz TIM2 Input Counter Clock
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/periodicCounterClock)-1;
 
     hSamplingTimer.Instance = TIM2;
@@ -165,11 +164,6 @@ SamplingTimerInit(uint32_t AHRSSamplingPeriod,
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 
-    sConfigOC.Pulse = AHRSSamplingPeriod;
-    if(HAL_TIM_OC_ConfigChannel(&hSamplingTimer, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
-        Error_Handler();
-    }
-
     sConfigOC.Pulse = motorSamplingPeriod;
     if(HAL_TIM_OC_ConfigChannel(&hSamplingTimer, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
@@ -177,6 +171,11 @@ SamplingTimerInit(uint32_t AHRSSamplingPeriod,
 
     sConfigOC.Pulse = sonarSamplingPeriod;
     if(HAL_TIM_OC_ConfigChannel(&hSamplingTimer, &sConfigOC, TIM_CHANNEL_3) != HAL_OK) {
+        Error_Handler();
+    }
+
+    sConfigOC.Pulse = AHRSSamplingPeriod;
+    if(HAL_TIM_OC_ConfigChannel(&hSamplingTimer, &sConfigOC, TIM_CHANNEL_4) != HAL_OK) {
         Error_Handler();
     }
 }
@@ -241,10 +240,19 @@ RightEncoderTimerInit(void) {
     memset(&sConfig, 0, sizeof(sConfig));
     memset(&sMasterConfig, 0, sizeof(sMasterConfig));
 
+    double timerClockFrequency = 10.0e6;  // 10 MHz (100ns period)
+    //double pulseDelay          = 1.0e-6;  // in seconds
+    double pulsewidth          = 10.0e-6; // in seconds
+
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/timerClockFrequency)-1;
+    uint16_t PulseWidthNumber = pulsewidth*timerClockFrequency;
+    uint16_t PulseDelayNumber = 1;//pulseDelay*timerClockFrequency;
+    uint16_t period = PulseWidthNumber+PulseDelayNumber;
+
     hRightEncodertimer.Instance = TIM4;
-    hRightEncodertimer.Init.Prescaler         = 0;
+    hRightEncodertimer.Init.Prescaler         = uwPrescalerValue;
     hRightEncodertimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hRightEncodertimer.Init.Period            = 65535;
+    hRightEncodertimer.Init.Period            = period;
     hRightEncodertimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     hRightEncodertimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if(HAL_TIM_IC_Init(&hRightEncodertimer) != HAL_OK) {
@@ -279,19 +287,19 @@ RightEncoderTimerInit(void) {
     memset(&sConfigIC, 0, sizeof(sConfigIC));
     memset(&sConfigOC, 0, sizeof(sConfigOC));
 
-    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+    sConfigIC.ICPolarity  = TIM_INPUTCHANNELPOLARITY_RISING;
     sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
     sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter = 0;
+    sConfigIC.ICFilter    = 0;
     if(HAL_TIM_IC_ConfigChannel(&hRightEncodertimer, &sConfigIC, TIM_CHANNEL_3) != HAL_OK) {
-      Error_Handler();
+        Error_Handler();
     }
-    sConfigOC.OCMode = TIM_OCMODE_TIMING;
-    sConfigOC.Pulse = 0;
+    sConfigOC.OCMode     = TIM_OCMODE_PWM2;
+    sConfigOC.Pulse      = 1;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
     if(HAL_TIM_OC_ConfigChannel(&hRightEncodertimer, &sConfigOC, TIM_CHANNEL_4) != HAL_OK) {
-      Error_Handler();
+        Error_Handler();
     }
 }
 
