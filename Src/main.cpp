@@ -150,9 +150,9 @@ uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
 uint32_t sonarSamplingFrequency  = 5;   // [Hz]
 
-uint32_t AHRSSamplingPeriod  = uint32_t(periodicCounterClock/AHRSSamplingFrequency +0.5);  // [Hz]
-uint32_t motorSamplingPeriod = uint32_t(periodicCounterClock/motorSamplingFrequency+0.5); // [Hz]
-uint32_t sonarSamplingPeriod = uint32_t(periodicCounterClock/sonarSamplingFrequency+0.5); // [Hz]
+uint32_t AHRSSamplingPulses  = uint32_t(periodicCounterClock/AHRSSamplingFrequency +0.5);  // [Hz]
+uint32_t motorSamplingPulses = uint32_t(periodicCounterClock/motorSamplingFrequency+0.5); // [Hz]
+uint32_t sonarSamplingPulses = uint32_t(periodicCounterClock/sonarSamplingFrequency+0.5); // [Hz]
 
 bool bSendAHRS    = false;
 bool bSendMotors  = false;
@@ -198,6 +198,7 @@ static bool AHRS_Init();
 static void AHRS_Init_Position();
 static void ExecCommand();
 static void Wait4Connection();
+static void TimerCaptureCompare_Callback(void);
 
 
 int
@@ -228,7 +229,7 @@ Init() {
                               GPIOA, GPIO_PIN_7, &hPwmTimer, TIM_CHANNEL_2);
 
     // Initialize the Periodic Samplig Timer
-    SamplingTimerInit(AHRSSamplingPeriod, motorSamplingPeriod, sonarSamplingPeriod);
+    SamplingTimerInit(AHRSSamplingPulses, motorSamplingPulses, sonarSamplingPulses);
 
     I2C2_Init(); // Initialize the 10DOF Sensor
     bAHRSpresent = AHRS_Init();
@@ -239,7 +240,7 @@ Init() {
     pLeftControlledMotor  = new ControlledMotor(pLeftMotor,  pLeftEncoder,  motorSamplingFrequency);
 //    pRightControlledMotor = new ControlledMotor(pRightMotor, pRightEncoder, motorSamplingFrequency);
 
-//    EchoTimerInit();
+    SonarTimerInit();
 
     // Start the Periodic Samplig Timer
     HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
@@ -653,12 +654,10 @@ HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
                 uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
             }
             else {
-                /* If capture values are equal, we have reached the limit of frequency
-           measures */
+                /* If capture values are equal, we have reached the limit of frequency measures */
                 Error_Handler();
             }
-            /* Frequency computation: for this example TIMx (TIM3) is clocked by
-         2xAPB1Clk */
+            /* Frequency computation: for this example TIMx (TIM3) is clocked by 2xAPB1Clk */
             uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture;
             uhCaptureIndex = 0;
         }
@@ -673,9 +672,28 @@ TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
 }
 
 
+
 void
-TIM1_TRG_COM_TIM11_IRQHandler(void) {
-    HAL_TIM_IRQHandler(&hSonarTimer);
+TIM5_IRQHandler(void) {
+    if(LL_TIM_IsActiveFlag_CC1(TIM5) == 1) {
+        LL_TIM_ClearFlag_CC1(TIM5);
+        TimerCaptureCompare_Callback();
+    }
+}
+
+
+void
+TimerCaptureCompare_Callback(void) {
+//    uint32_t CNT;
+//    uint32_t PSC;
+//    uint32_t ARR;
+
+//    CNT = LL_TIM_GetCounter(TIM5);
+//    PSC = LL_TIM_GetPrescaler(TIM5);
+//    ARR = LL_TIM_GetAutoReload(TIM5);
+
+//    uwMeasuredDelay = (CNT*timerClockFrequency)/(SystemCoreClock/(PSC+1));
+//    uwMeasuredPulseLength = ((ARR-CNT)*timerClockFrequency)/(SystemCoreClock/(PSC+1));
 }
 
 
@@ -683,7 +701,7 @@ TIM1_TRG_COM_TIM11_IRQHandler(void) {
 void
 HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
     if(hSamplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_4) { // Is it time to Update AHRS Data ?
-        htim->Instance->CCR4 += AHRSSamplingPeriod;
+        htim->Instance->CCR4 += AHRSSamplingPulses;
         if(bAHRSpresent) {
             Acc.get_Gxyz(&AHRSvalues[0]);
             Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
@@ -697,7 +715,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
         HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) { // Is it time to Update Motors Data ?
-        htim->Instance->CCR2 += motorSamplingPeriod;
+        htim->Instance->CCR2 += motorSamplingPulses;
         if(pLeftControlledMotor) {
             pLeftControlledMotor->Update();
             bSendMotors = true;
@@ -708,7 +726,10 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
         }
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) { // Is it time to Update Sonar Data ? 1Hz
-        htim->Instance->CCR3 += sonarSamplingPeriod;
+        htim->Instance->CCR3 += sonarSamplingPulses;
+        // Enable counter.
+        // The counter will stop automatically at the next update event (UEV).
+        LL_TIM_EnableCounter(TIM5);
         if(bOldConnectionStatus != bNewConnectionStatus)
             bConnected = false;
         else

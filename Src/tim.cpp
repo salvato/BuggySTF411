@@ -52,8 +52,15 @@
 // PA7 (CN10 15)    ------> TIM3_CH2
 
 
+//==========================================
+// TIM5 GPIO Configuration (Sonar)
+//==========================================
+// PA0 (CN7 - 28)  ------> TIM3_CH1 (Pulse)
+
+
 //====================================
 // Left Motor Direction Pins
+//====================================
 // PC8  (CN10  2)    ------> LM298 IN1
 // PC9  (CN10  1)    ------> LM298 IN2
 //====================================
@@ -61,6 +68,7 @@
 
 //====================================
 // Right Motor Direction Pins
+//====================================
 // PC10 (CN7  1)    ------> LM298 IN3
 // PC11 (CN7  2)    ------> LM298 IN4
 //====================================
@@ -72,12 +80,13 @@
 //     TIM2 ---> Periodic Interrupt
 //     TIM3 ---> PWM (Motors)
 //     TIM4 ---> Encoder (Right)
-//     TIM9 ---> Ultrasound Sensor
+//     TIM5 ---> Ultrasound Sensor
 //====================================
 */
 #include "tim.h"
 #include "utility.h"
 #include "string.h" // for memset()
+#include "stm32f4xx_ll_tim.h"
 
 
 TIM_HandleTypeDef hLeftEncodertimer;
@@ -103,7 +112,7 @@ LeftEncoderTimerInit() {
     hLeftEncodertimer.Instance = TIM1;
     hLeftEncodertimer.Init.Prescaler         = 0;
     hLeftEncodertimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hLeftEncodertimer.Init.Period            = 65535;
+    hLeftEncodertimer.Init.Period            = 0xFFFF;
     hLeftEncodertimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     hLeftEncodertimer.Init.RepetitionCounter = 0;
     hLeftEncodertimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -142,7 +151,7 @@ SamplingTimerInit(uint32_t AHRSSamplingPeriod,
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/periodicCounterClock)-1;
 
     hSamplingTimer.Instance = TIM2;
-    hSamplingTimer.Init.Period            = 0xFFFFFFFF;             // ARR register
+    hSamplingTimer.Init.Period            = 0xFFFFFFFF;             // ARR register (32 bit)
     hSamplingTimer.Init.Prescaler         = uwPrescalerValue;       // PSC
     hSamplingTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1; // (0) No Clock Division
     hSamplingTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
@@ -164,7 +173,7 @@ SamplingTimerInit(uint32_t AHRSSamplingPeriod,
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 
-    sConfigOC.Pulse = motorSamplingPeriod;
+    sConfigOC.Pulse = motorSamplingPeriod; // CCR register
     if(HAL_TIM_OC_ConfigChannel(&hSamplingTimer, &sConfigOC, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
     }
@@ -240,27 +249,13 @@ RightEncoderTimerInit(void) {
     memset(&sConfig, 0, sizeof(sConfig));
     memset(&sMasterConfig, 0, sizeof(sMasterConfig));
 
-    double timerClockFrequency = 10.0e6;  // 10 MHz (100ns period)
-    //double pulseDelay          = 1.0e-6;  // in seconds
-    double pulsewidth          = 10.0e-6; // in seconds
-
-    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/timerClockFrequency)-1;
-    uint16_t PulseWidthNumber = pulsewidth*timerClockFrequency;
-    uint16_t PulseDelayNumber = 1;//pulseDelay*timerClockFrequency;
-    uint16_t period = PulseWidthNumber+PulseDelayNumber;
-
     hRightEncodertimer.Instance = TIM4;
-    hRightEncodertimer.Init.Prescaler         = uwPrescalerValue;
+    hRightEncodertimer.Init.Prescaler         = 0;
     hRightEncodertimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hRightEncodertimer.Init.Period            = period;
+    hRightEncodertimer.Init.Period            = 0xFFFF;
     hRightEncodertimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    hLeftEncodertimer.Init.RepetitionCounter  = 0;
     hRightEncodertimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if(HAL_TIM_IC_Init(&hRightEncodertimer) != HAL_OK) {
-      Error_Handler();
-    }
-    if(HAL_TIM_OC_Init(&hRightEncodertimer) != HAL_OK) {
-      Error_Handler();
-    }
 
     //sConfig.EncoderMode  = TIM_ENCODERMODE_TI1;
     sConfig.EncoderMode  = TIM_ENCODERMODE_TI2;
@@ -277,30 +272,58 @@ RightEncoderTimerInit(void) {
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
     if(HAL_TIMEx_MasterConfigSynchronization(&hRightEncodertimer, &sMasterConfig) != HAL_OK) {
         Error_Handler();
     }
+}
 
-    TIM_IC_InitTypeDef sConfigIC;
-    TIM_OC_InitTypeDef sConfigOC;
-    memset(&sConfigIC, 0, sizeof(sConfigIC));
-    memset(&sConfigOC, 0, sizeof(sConfigOC));
 
-    sConfigIC.ICPolarity  = TIM_INPUTCHANNELPOLARITY_RISING;
-    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter    = 0;
-    if(HAL_TIM_IC_ConfigChannel(&hRightEncodertimer, &sConfigIC, TIM_CHANNEL_3) != HAL_OK) {
+void
+SonarTimerInit(void) {
+    initTim5GPIO();
+
+    //*****************************************************+
+    // Configure the NVIC to handle TIM5 Global Interrupt  |
+    //*****************************************************+
+    NVIC_SetPriority(TIM5_IRQn, 0);
+    NVIC_EnableIRQ(TIM5_IRQn); // The Global Interrupt
+
+    double timerClockFrequency = 10.0e6; // 10 MHz (100ns period)
+    double pulseDelay          = 10.0e-6; // in seconds
+    double pulsewidth          = 10.0e-6;// in seconds
+
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/timerClockFrequency)-1;
+    uint16_t PulseWidthNumber = pulsewidth*timerClockFrequency;
+    uint16_t PulseDelayNumber = pulseDelay*timerClockFrequency;
+    uint16_t period = PulseWidthNumber+PulseDelayNumber;
+
+    __HAL_RCC_TIM5_CLK_ENABLE();
+
+    memset(&hSonarTimer, 0, sizeof(hSonarTimer));
+    hSonarTimer.Instance = TIM5;
+    hSonarTimer.Init.Prescaler         = uwPrescalerValue;
+    hSonarTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    hSonarTimer.Init.Period            = period; // Pulse Total
+    hSonarTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    hSonarTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    if(HAL_TIM_OnePulse_Init(&hSonarTimer, TIM_OPMODE_SINGLE) != HAL_OK) {
         Error_Handler();
     }
-    sConfigOC.OCMode     = TIM_OCMODE_PWM2;
-    sConfigOC.Pulse      = 1;
-    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-    if(HAL_TIM_OC_ConfigChannel(&hRightEncodertimer, &sConfigOC, TIM_CHANNEL_4) != HAL_OK) {
-        Error_Handler();
-    }
+
+    LL_TIM_OC_SetCompareCH1(TIM5, PulseDelayNumber); // Pulse Delay
+    LL_TIM_OC_SetMode(TIM5,  LL_TIM_CHANNEL_CH1,  LL_TIM_OCMODE_PWM2);
+    LL_TIM_OC_ConfigOutput(TIM5, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH | LL_TIM_OCIDLESTATE_LOW);
+
+    // Enable the capture/compare interrupt for channel 1
+    LL_TIM_EnableIT_CC1(TIM5);
+
+    //*************************+
+    // Start pulse generation  |
+    //*************************+
+    LL_TIM_CC_EnableChannel(TIM5, LL_TIM_CHANNEL_CH1);
+    LL_TIM_EnableAllOutputs(TIM5);
+    LL_TIM_GenerateEvent_UPDATE(TIM5); // Force update generation
 }
 
 
@@ -310,8 +333,8 @@ initTim1GPIO() {
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
     // TIM1 GPIO Configuration:
-    // PA8     ------> TIM1_CH1
-    // PA9     ------> TIM1_CH2
+    //    PA8     ------> TIM1_CH1 (CN10 - 23)
+    //    PA9     ------> TIM1_CH2 (CN10 - 21)
     GPIO_InitStruct.Pin       = GPIO_PIN_8 | GPIO_PIN_9;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull      = GPIO_NOPULL;
@@ -344,14 +367,28 @@ initTim4GPIO() {
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOB_CLK_ENABLE();
     // TIM4 GPIO Configuration
-    // PB6     ------> TIM4_CH1
-    // PB7     ------> TIM4_CH2
-    // PB8     ------> TIM4_CH3
-    // PB9     ------> TIM4_CH4
-    GPIO_InitStruct.Pin       = GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
+    //    PB6     ------> TIM4_CH1 (CN10 - 17)
+    //    PB7     ------> TIM4_CH2 (CN7  - 21)
+    GPIO_InitStruct.Pin       = GPIO_PIN_6 | GPIO_PIN_7;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull      = GPIO_NOPULL;
     GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
+
+
+void
+initTim5GPIO() {
+    GPIO_InitTypeDef GPIO_InitStruct;
+    memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    // TIM5 GPIO Configuration
+    //    PA0  ------> TIM5_CH1 (Output CN7  - 28)
+    GPIO_InitStruct.Pin       = GPIO_PIN_0;
+    GPIO_InitStruct.Pull      = GPIO_PULLUP;
+    GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Alternate = GPIO_AF2_TIM5;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 }

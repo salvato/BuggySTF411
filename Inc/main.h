@@ -5,6 +5,7 @@ extern "C" {
 #endif
 
 #include "stm32f4xx_hal.h"
+#include "stm32f4xx_ll_tim.h"
 
 #define USART_RX_Pin       GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
@@ -18,6 +19,7 @@ extern "C" {
 
 
 void TIM2_IRQHandler(void);
+void TIM5_IRQHandler(void);
 void EXTI15_10_IRQHandler(void);
 void USART2_DMA_RX_IRQHandler(void);
 void USART2_DMA_TX_IRQHandler(void);
