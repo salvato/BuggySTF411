@@ -109,10 +109,6 @@
 #define USART2_FORCE_RESET()   __HAL_RCC_USART2_FORCE_RESET()
 #define USARt2_RELEASE_RESET() __HAL_RCC_USART2_RELEASE_RESET()
 
-#define SONAR_TRIG_PIN  GPIO_PIN_9
-#define SONAR_TRIG_PORT GPIOA
-#define ECHO_PIN        GPIO_PIN_8
-#define ECHO_PORT       GPIOA
 
 // defined in tim.h
 extern TIM_HandleTypeDef hLeftEncodertimer;
@@ -121,13 +117,19 @@ extern TIM_HandleTypeDef hPwmTimer;
 extern TIM_HandleTypeDef hRightEncodertimer;
 extern TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
 
+
 extern double periodicCounterClock;// 1MHz
+
 
 //==================
 // Private variables
 //==================
 
-I2C_HandleTypeDef hi2c2;
+UART_HandleTypeDef huart2;
+DMA_HandleTypeDef  hdma_usart2_tx;
+DMA_HandleTypeDef  hdma_usart2_rx;
+I2C_HandleTypeDef  hi2c2;
+
 
 Encoder*         pLeftEncoder          = nullptr;
 Encoder*         pRightEncoder         = nullptr;
@@ -156,10 +158,6 @@ uint32_t sonarSamplingPulses = uint32_t(periodicCounterClock/sonarSamplingFreque
 
 bool bSendAHRS    = false;
 bool bSendMotors  = false;
-
-UART_HandleTypeDef huart2;
-DMA_HandleTypeDef  hdma_usart2_tx;
-DMA_HandleTypeDef  hdma_usart2_rx;
 
 int     rxBufferSize = 255;
 uint8_t rxBuffer[255];
@@ -614,6 +612,7 @@ ExecCommand() {
     return;
 }
 
+
 // To be changed with a Pulsing Timer !!!
 void
 HCSR04_Read(void) {
@@ -926,9 +925,5 @@ HAL_UART_ErrorCallback(UART_HandleTypeDef *UartHandle) {
 #ifdef  USE_FULL_ASSERT
 void
 assert_failed(uint8_t *file, uint32_t line) {
-    /* USER CODE BEGIN 6 */
-    /* User can add his own implementation to report the file name and line number,
-     tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-    /* USER CODE END 6 */
 }
 #endif // USE_FULL_ASSERT
