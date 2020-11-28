@@ -402,8 +402,8 @@ initTim5GPIO() { // Sonar radar
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
     // TIM5 GPIO Configuration
-    //    PA0  ------> TIM5_CH1 (Pulse Output CN7  - 28)
-    //    PA1  ------> TIM5_CH2 (Echo Input   CN7  - 30)
+    //    PA0  ------> TIM5_CH1 (Pulse Output            CN7  - 28)
+    //    PA1  ------> TIM5_CH2 (Echo Input 5V Tolerant  CN7  - 30)
     GPIO_InitStruct.Pin       = GPIO_PIN_0 | GPIO_PIN_1;
     GPIO_InitStruct.Pull      = GPIO_PULLUP;
     GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
