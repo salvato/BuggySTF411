@@ -110,15 +110,17 @@
 #define USARt2_RELEASE_RESET() __HAL_RCC_USART2_RELEASE_RESET()
 
 
-// defined in tim.h
-extern TIM_HandleTypeDef hLeftEncodertimer;
-extern TIM_HandleTypeDef hSamplingTimer;
-extern TIM_HandleTypeDef hPwmTimer;
-extern TIM_HandleTypeDef hRightEncodertimer;
-extern TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
+TIM_HandleTypeDef hLeftEncodertimer;
+TIM_HandleTypeDef hSamplingTimer;
+TIM_HandleTypeDef hPwmTimer;
+TIM_HandleTypeDef hRightEncodertimer;
+TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
 
 
-extern double periodicCounterClock;// 1MHz
+double periodicCounterClock     = 10.0e6;  // 10MHz
+double sonarTimerClockFrequency = 10.0e6;  // 10MHz (100ns period)
+double sonarPulseDelay          = 10.0e-6; // in seconds
+double sonarPulseWidth          = 10.0e-6; // in seconds
 
 
 //==================

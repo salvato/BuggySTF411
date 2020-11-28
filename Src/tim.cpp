@@ -84,19 +84,28 @@
 //     TIM5 ---> Ultrasound Sensor
 //====================================
 */
+
+
 #include "tim.h"
 #include "utility.h"
 #include "string.h" // for memset()
 #include "stm32f4xx_ll_tim.h"
 
 
-TIM_HandleTypeDef hLeftEncodertimer;
-TIM_HandleTypeDef hSamplingTimer;
-TIM_HandleTypeDef hPwmTimer;
-TIM_HandleTypeDef hRightEncodertimer;
-TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
+// Defined in main.cpp
+extern TIM_HandleTypeDef hLeftEncodertimer;
+extern TIM_HandleTypeDef hSamplingTimer;
+extern TIM_HandleTypeDef hPwmTimer;
+extern TIM_HandleTypeDef hRightEncodertimer;
+extern TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
 
-double periodicCounterClock = 10.0e6;// 1MHz
+
+// Defined in main.cpp
+extern double periodicCounterClock;     // 10MHz
+extern double sonarTimerClockFrequency; // 10MHz (100ns period)
+extern double sonarPulseDelay;          // in seconds
+extern double sonarPulseWidth;          // in seconds
+
 
 
 // Left Encoder (TIM1 - Advanced Timer)
@@ -291,13 +300,9 @@ SonarTimerInit(void) {
     NVIC_SetPriority(TIM5_IRQn, 0);
     NVIC_EnableIRQ(TIM5_IRQn); // The Global Interrupt
 
-    double timerClockFrequency = 10.0e6; // 10 MHz (100ns period)
-    double pulseDelay          = 10.0e-6; // in seconds
-    double pulsewidth          = 10.0e-6;// in seconds
-
-    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/timerClockFrequency)-1;
-    uint16_t PulseWidthNumber = pulsewidth*timerClockFrequency;
-    uint16_t PulseDelayNumber = pulseDelay*timerClockFrequency;
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarTimerClockFrequency)-1;
+    uint16_t PulseWidthNumber = sonarPulseWidth*sonarTimerClockFrequency;
+    uint16_t PulseDelayNumber = sonarPulseDelay*sonarTimerClockFrequency;
     uint16_t period = PulseWidthNumber+PulseDelayNumber;
 
     __HAL_RCC_TIM5_CLK_ENABLE();
