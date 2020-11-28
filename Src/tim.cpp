@@ -294,12 +294,6 @@ void
 SonarTimerInit(void) {
     initTim5GPIO();
 
-    //*****************************************************+
-    // Configure the NVIC to handle TIM5 Global Interrupt  |
-    //*****************************************************+
-    NVIC_SetPriority(TIM5_IRQn, 0);
-    NVIC_EnableIRQ(TIM5_IRQn); // The Global Interrupt
-
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarTimerClockFrequency)-1;
     uint16_t PulseWidthNumber = sonarPulseWidth*sonarTimerClockFrequency;
     uint16_t PulseDelayNumber = sonarPulseDelay*sonarTimerClockFrequency;
@@ -332,6 +326,13 @@ SonarTimerInit(void) {
     LL_TIM_EnableAllOutputs(TIM5);
     LL_TIM_GenerateEvent_UPDATE(TIM5); // Force update generation
 
+    //*******************************************+
+    // Program Channel 2 to act as Input Compare |
+    //*******************************************+
+    if(HAL_TIM_IC_Init(&hSonarTimer) != HAL_OK) {
+      Error_Handler();
+    }
+
     TIM_IC_InitTypeDef sConfigIC;
     memset(&sConfigIC, 0, sizeof(sConfigIC));
 
@@ -342,6 +343,15 @@ SonarTimerInit(void) {
     if(HAL_TIM_IC_ConfigChannel(&hSonarTimer, &sConfigIC, TIM_CHANNEL_2) != HAL_OK) {
         Error_Handler();
     }
+    //*****************************************************+
+    // Configure the NVIC to handle TIM5 Global Interrupt  |
+    //*****************************************************+
+    if(HAL_TIM_IC_Start_IT(&hSonarTimer, TIM_CHANNEL_2) != HAL_OK) {
+      Error_Handler();
+    }
+
+    NVIC_SetPriority(TIM5_IRQn, 0);
+    NVIC_EnableIRQ(TIM5_IRQn); // The Global Interrupt
 }
 
 

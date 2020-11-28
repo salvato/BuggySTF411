@@ -178,13 +178,15 @@ volatile bool bNewConnectionStatus = false;
 volatile bool bOldConnectionStatus = bNewConnectionStatus;
 
 /* Captured Values */
-uint32_t uwIC2Value1    = 0;
-uint32_t uwIC2Value2    = 0;
-uint32_t uwDiffCapture  = 0;
+volatile uint32_t uwIC2Value1    = 0;
+volatile uint32_t uwIC2Value2    = 0;
+volatile uint32_t uwDiffCapture  = 0;
 /* Capture index */
-uint16_t uhCaptureIndex = 0;
+volatile uint16_t uhCaptureIndex = 0;
 /* Frequency Value */
-uint32_t uwFrequency    = 0;
+volatile uint32_t uwFrequency    = 0;
+volatile double uwMeasuredDelay;
+volatile double uwMeasuredPulseLength;
 
 
 //====================================
@@ -199,7 +201,7 @@ static void AHRS_Init_Position();
 static void ExecCommand();
 static void Wait4Connection();
 static void TimerCaptureCompare_Callback(void);
-
+static void EchoTimerCaptureCallback();
 
 int
 main(void) {
@@ -280,7 +282,7 @@ Wait4Connection() {
     if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
         Error_Handler();
 
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    //HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
     strcpy((char *)txBuffer, "Buggy Ready\n");
     bConnected = false;
     while(!bConnected) {
@@ -301,7 +303,7 @@ Wait4Connection() {
                 Error_Handler();
         }
     } //  while(!bConnected)
-    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+    //HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 }
 
 
@@ -615,41 +617,25 @@ ExecCommand() {
 }
 
 
-// To be changed with a Pulsing Timer !!!
 void
-HCSR04_Read(void) {
-//    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
-//    HAL_Delay(1);  // <<<<<<<<<<<<============== wait for 10 us
-//    HAL_GPIO_WritePin(SONAR_TRIG_PORT, SONAR_TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
-//    __HAL_TIM_ENABLE_IT(&sonarTimer, TIM_IT_CC1);
-    /*##-3- Start the Input Capture in interrupt mode ##########################*/
-    if(HAL_TIM_IC_Start_IT(&hSonarTimer, TIM_CHANNEL_1) != HAL_OK) {
-        Error_Handler();
+HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+    if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
+        uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+        uhCaptureIndex = 1;
     }
-}
-
-
-void
-EchoTimerCaptureCallback(TIM_HandleTypeDef *htim) {
-    if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
-        if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
-            uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-            uhCaptureIndex = 1;
+    else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
+        uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+        /// Echo duration computation
+        if(uwIC2Value2 > uwIC2Value1) {
+            uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
         }
-        else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
-            uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-            /// Echo duration computation
-            if(uwIC2Value2 > uwIC2Value1) {
-                uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
-            }
-            else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
-                uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
-            }
-            else { // If capture values are equal, we have reached the limit of frequency measures
-                Error_Handler();
-            }
-            uhCaptureIndex = 0;
+        else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
+            uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
         }
+        else { // If capture values are equal, we have reached the limit of frequency measures
+            Error_Handler();
+        }
+        uhCaptureIndex = 0;
     }
 }
 
@@ -665,28 +651,47 @@ TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
 void
 TIM5_IRQHandler(void) {
     if(LL_TIM_IsActiveFlag_CC1(TIM5) == 1) {
+        TimerCaptureCompare_Callback();
         LL_TIM_ClearFlag_CC1(TIM5);
-        if(hSonarTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
-            EchoTimerCaptureCallback(&hSonarTimer);
-        }
-        else
-            TimerCaptureCompare_Callback();
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    }
+    if(LL_TIM_IsActiveFlag_CC2(TIM5) == 1) {
+        EchoTimerCaptureCallback();
+        LL_TIM_ClearFlag_CC2(TIM5);
     }
 }
 
 
 void
 TimerCaptureCompare_Callback(void) {
-//    uint32_t CNT;
-//    uint32_t PSC;
-//    uint32_t ARR;
+    double CNT = double(LL_TIM_GetCounter(TIM5));
+    double ARR = double(LL_TIM_GetAutoReload(TIM5));
 
-//    CNT = LL_TIM_GetCounter(TIM5);
-//    PSC = LL_TIM_GetPrescaler(TIM5);
-//    ARR = LL_TIM_GetAutoReload(TIM5);
+    uwMeasuredDelay = CNT/sonarTimerClockFrequency;
+    uwMeasuredPulseLength = (ARR-CNT)/sonarTimerClockFrequency;
+}
 
-//    uwMeasuredDelay = (CNT*timerClockFrequency)/(SystemCoreClock/(PSC+1));
-//    uwMeasuredPulseLength = ((ARR-CNT)*timerClockFrequency)/(SystemCoreClock/(PSC+1));
+
+void
+EchoTimerCaptureCallback() {
+    if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
+        uwIC2Value1 = HAL_TIM_ReadCapturedValue(&hSonarTimer, TIM_CHANNEL_2);
+        uhCaptureIndex = 1;
+    }
+    else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
+        uwIC2Value2 = HAL_TIM_ReadCapturedValue(&hSonarTimer, TIM_CHANNEL_2);
+        /// Echo duration computation
+        if(uwIC2Value2 > uwIC2Value1) {
+            uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
+        }
+        else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
+            uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
+        }
+        else { // If capture values are equal, we have reached the limit of frequency measures
+            Error_Handler();
+        }
+        uhCaptureIndex = 0;
+    }
 }
 
 
@@ -705,7 +710,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
                                 AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
             bSendAHRS = true;
         }
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+        //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
     else if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) { // Is it time to Update Motors Data ?
         htim->Instance->CCR2 += motorSamplingPulses;
