@@ -620,10 +620,15 @@ ExecCommand() {
 void
 HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
+        /* Select the next edge of the active transition on the TI2 channel: falling edge */
+        LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_FALLING);
+
         uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
         uhCaptureIndex = 1;
     }
     else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
+        /* Select the next edge of the active transition on the TI2 channel: rising edge */
+        LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
         uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
         /// Echo duration computation
         if(uwIC2Value2 > uwIC2Value1) {

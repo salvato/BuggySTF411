@@ -301,6 +301,9 @@ SonarTimerInit(void) {
 
     __HAL_RCC_TIM5_CLK_ENABLE();
 
+    NVIC_SetPriority(TIM5_IRQn, 0);
+    NVIC_EnableIRQ(TIM5_IRQn); // The Global Interrupt
+
     memset(&hSonarTimer, 0, sizeof(hSonarTimer));
     hSonarTimer.Instance = TIM5;
     hSonarTimer.Init.Prescaler         = uwPrescalerValue;
@@ -325,33 +328,33 @@ SonarTimerInit(void) {
     LL_TIM_CC_EnableChannel(TIM5, LL_TIM_CHANNEL_CH1);
     LL_TIM_EnableAllOutputs(TIM5);
     LL_TIM_GenerateEvent_UPDATE(TIM5); // Force update generation
-
-    //*******************************************+
-    // Program Channel 2 to act as Input Compare |
-    //*******************************************+
-    if(HAL_TIM_IC_Init(&hSonarTimer) != HAL_OK) {
-      Error_Handler();
-    }
-
-    TIM_IC_InitTypeDef sConfigIC;
-    memset(&sConfigIC, 0, sizeof(sConfigIC));
-
-    sConfigIC.ICPolarity  = TIM_INPUTCHANNELPOLARITY_RISING;
-    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter = 0;
-    if(HAL_TIM_IC_ConfigChannel(&hSonarTimer, &sConfigIC, TIM_CHANNEL_2) != HAL_OK) {
-        Error_Handler();
-    }
-    //*****************************************************+
+/*
+    //===========================================+
+    // Program Channel 2 to act as Input Capture |
+    //===========================================+
+    // Select the active input
+    LL_TIM_IC_SetActiveInput(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
+    // Configure the input filter duration: no filter needed
+    LL_TIM_IC_SetFilter(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_FILTER_FDIV1);
+    // Set input prescaler: prescaler is disabled
+    LL_TIM_IC_SetPrescaler(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
+    // Select the edge of the active transition on the TI1 channel: rising edge
+    LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
+    //=========================+
+    // TIM5 interrupts set-up  |
+    //=========================+
+    // Enable the capture/compare interrupt for channel 2
+    LL_TIM_EnableIT_CC2(TIM5);
+    //======================+
+    // Start input capture  |
+    //======================+
+    LL_TIM_CC_EnableChannel(TIM5, LL_TIM_CHANNEL_CH2);
+    // Enable counter
+    LL_TIM_EnableCounter(TIM5);
+    //=====================================================+
     // Configure the NVIC to handle TIM5 Global Interrupt  |
-    //*****************************************************+
-    if(HAL_TIM_IC_Start_IT(&hSonarTimer, TIM_CHANNEL_2) != HAL_OK) {
-      Error_Handler();
-    }
-
-    NVIC_SetPriority(TIM5_IRQn, 0);
-    NVIC_EnableIRQ(TIM5_IRQn); // The Global Interrupt
+    //=====================================================+
+*/
 }
 
 
