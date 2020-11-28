@@ -627,37 +627,25 @@ HCSR04_Read(void) {
 }
 
 
-/**
-  * @brief  Conversion complete callback in non blocking mode
-  * @param  htim : hadc handle
-  * @retval None
-  */
 void
-HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+EchoTimerCaptureCallback(TIM_HandleTypeDef *htim) {
     if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
-        if(uhCaptureIndex == 0) {
-            /* Get the 1st Input Capture value */
+        if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
             uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
             uhCaptureIndex = 1;
         }
-        else if(uhCaptureIndex == 1) {
-            /* Get the 2nd Input Capture value */
+        else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
             uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-
-            /* Capture computation */
+            /// Echo duration computation
             if(uwIC2Value2 > uwIC2Value1) {
                 uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
             }
-            else if(uwIC2Value2 < uwIC2Value1) {
-                /* 0xFFFF is max TIM3_CCRx value */
+            else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
                 uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
             }
-            else {
-                /* If capture values are equal, we have reached the limit of frequency measures */
+            else { // If capture values are equal, we have reached the limit of frequency measures
                 Error_Handler();
             }
-            /* Frequency computation: for this example TIMx (TIM3) is clocked by 2xAPB1Clk */
-            uwFrequency = (2*HAL_RCC_GetPCLK1Freq()) / uwDiffCapture;
             uhCaptureIndex = 0;
         }
     }
@@ -676,7 +664,11 @@ void
 TIM5_IRQHandler(void) {
     if(LL_TIM_IsActiveFlag_CC1(TIM5) == 1) {
         LL_TIM_ClearFlag_CC1(TIM5);
-        TimerCaptureCompare_Callback();
+        if(hSonarTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
+            EchoTimerCaptureCallback(&hSonarTimer);
+        }
+        else
+            TimerCaptureCompare_Callback();
     }
 }
 
@@ -805,114 +797,6 @@ void
 USART2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_UART_IRQHandler(&huart2);
 }
-
-
-/*
-uint32_t IC_Val1 = 0;
-uint32_t IC_Val2 = 0;
-uint32_t Difference = 0;
-bool     bFirstCaptured = false;  // is the first value captured ?
-uint8_t  Distance  = 0;
-
-#define TRIG_PIN  GPIO_PIN_9
-#define TRIG_PORT GPIOA
-#define ECHO_PIN  GPIO_PIN_8
-#define ECHO_PORT GPIOA
-
-void
-HCSR04_Read(void) {
-    HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_SET); // pull the TRIG pin HIGH
-    delay(10);  // wait for 10 us
-    HAL_GPIO_WritePin(TRIG_PORT, TRIG_PIN, GPIO_PIN_RESET); // pull the TRIG pin low
-    __HAL_TIM_ENABLE_IT(&radarTimer, TIM_IT_CC1);
-}
-
-
-static void
-MX_TIM1_Init(void) {
-    TIM_MasterConfigTypeDef sMasterConfig;
-    TIM_IC_InitTypeDef sConfigIC;
-    memset(&sMasterConfig, 0, sizeof(sMasterConfig));
-    memset(&sConfigIC, 0, sizeof(sConfigIC));
-
-    radarTimer.Instance = TIM9;
-    radarTimer.Init.Prescaler = 72-1;
-    radarTimer.Init.CounterMode = TIM_COUNTERMODE_UP;
-    radarTimer.Init.Period = 0xffff-1;
-    radarTimer.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-    radarTimer.Init.RepetitionCounter = 0;
-    radarTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-    if(HAL_TIM_IC_Init(&radarTimer) != HAL_OK) {
-        Error_Handler();
-    }
-    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&radarTimer, &sMasterConfig) != HAL_OK) {
-        Error_Handler();
-    }
-    sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-    sConfigIC.ICFilter = 0;
-    if(HAL_TIM_IC_ConfigChannel(&radarTimer, &sConfigIC, TIM_CHANNEL_1) != HAL_OK) {
-        Error_Handler();
-    }
-}
-
-
-void
-HAL_TIM_IC_MspInit(TIM_HandleTypeDef* htim_ic) {
-    GPIO_InitTypeDef GPIO_InitStruct;
-    memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
-    if(htim_ic->Instance == TIM9) {
-        __HAL_RCC_TIM1_CLK_ENABLE(); // <======== No !!!
-        __HAL_RCC_GPIOA_CLK_ENABLE(); // <======== No !!!
-        // TIM1 GPIO Configuration // <======== No !!!
-        // PA8    ------> TIM1_CH1 // <======== No !!!
-        GPIO_InitStruct.Pin = TRIG_PIN;
-        GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-        GPIO_InitStruct.Pull = GPIO_NOPULL;
-        HAL_GPIO_Init(TRIG_PORT, &GPIO_InitStruct);
-        // TIM1 interrupt Init
-        HAL_NVIC_SetPriority(TIM1_CC_IRQn, 0, 0); // <======== No !!!
-        HAL_NVIC_EnableIRQ(TIM1_CC_IRQn); // <======== No !!!
-    }
-}
-
-
-void
-TIM1_CC_IRQHandler(void) {
-    HAL_TIM_IRQHandler(&radarTimer);
-}
-
-
-void
-HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-    if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) { // if the interrupt source is channel1
-        if(!bFirstCaptured) { // if the first value is not captured
-            IC_Val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1); // read the first value
-            bFirstCaptured = true;  // set the first captured as true
-            // Now change the polarity to falling edge
-            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
-        }
-        else if(bFirstCaptured) { // if the first is already captured
-            IC_Val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);  // read second value
-            __HAL_TIM_SET_COUNTER(htim, 0);  // reset the counter
-            if(IC_Val2 > IC_Val1) {
-                Difference = IC_Val2-IC_Val1;
-            }
-            else if(IC_Val1 > IC_Val2) {
-                Difference = (0xffff - IC_Val1) + IC_Val2;
-            }
-            Distance = Difference * .034/2;
-            bFirstCaptured = false; // set it back to false
-            // set polarity to rising edge
-            __HAL_TIM_SET_CAPTUREPOLARITY(htim, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
-            __HAL_TIM_DISABLE_IT(htim, TIM_IT_CC1);
-        }
-    } // if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
-}
-*/
 
 
 void

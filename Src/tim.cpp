@@ -56,6 +56,7 @@
 // TIM5 GPIO Configuration (Sonar)
 //==========================================
 // PA0 (CN7 - 28)  ------> TIM3_CH1 (Pulse)
+// PA1 (CN7 - 30)  ------> TIM3_CH2 (Echo)
 
 
 //====================================
@@ -279,6 +280,7 @@ RightEncoderTimerInit(void) {
 }
 
 
+// Sonar radar
 void
 SonarTimerInit(void) {
     initTim5GPIO();
@@ -324,11 +326,22 @@ SonarTimerInit(void) {
     LL_TIM_CC_EnableChannel(TIM5, LL_TIM_CHANNEL_CH1);
     LL_TIM_EnableAllOutputs(TIM5);
     LL_TIM_GenerateEvent_UPDATE(TIM5); // Force update generation
+
+    TIM_IC_InitTypeDef sConfigIC;
+    memset(&sConfigIC, 0, sizeof(sConfigIC));
+
+    sConfigIC.ICPolarity  = TIM_INPUTCHANNELPOLARITY_RISING;
+    sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+    sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+    sConfigIC.ICFilter = 0;
+    if(HAL_TIM_IC_ConfigChannel(&hSonarTimer, &sConfigIC, TIM_CHANNEL_2) != HAL_OK) {
+        Error_Handler();
+    }
 }
 
 
 void
-initTim1GPIO() {
+initTim1GPIO() { // Left Encoder
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -345,7 +358,7 @@ initTim1GPIO() {
 
 
 void
-initTim3GPIO() {
+initTim3GPIO() { // Motors PWMs
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -362,7 +375,7 @@ initTim3GPIO() {
 
 
 void
-initTim4GPIO() {
+initTim4GPIO() { // Right Encoder
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -379,13 +392,14 @@ initTim4GPIO() {
 
 
 void
-initTim5GPIO() {
+initTim5GPIO() { // Sonar radar
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
     // TIM5 GPIO Configuration
-    //    PA0  ------> TIM5_CH1 (Output CN7  - 28)
-    GPIO_InitStruct.Pin       = GPIO_PIN_0;
+    //    PA0  ------> TIM5_CH1 (Pulse Output CN7  - 28)
+    //    PA1  ------> TIM5_CH2 (Echo Input   CN7  - 30)
+    GPIO_InitStruct.Pin       = GPIO_PIN_0 | GPIO_PIN_1;
     GPIO_InitStruct.Pull      = GPIO_PULLUP;
     GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
