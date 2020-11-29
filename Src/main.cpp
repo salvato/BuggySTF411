@@ -200,8 +200,8 @@ static bool AHRS_Init();
 static void AHRS_Init_Position();
 static void ExecCommand();
 static void Wait4Connection();
-static void TimerCaptureCompare_Callback(void);
-static void EchoTimerCaptureCallback();
+//static void TimerCaptureCompare_Callback(void);
+//static void EchoTimerCaptureCallback();
 
 int
 main(void) {
@@ -345,7 +345,6 @@ Loop() {
                 if(HAL_UART_Transmit_DMA(&huart2, txBuffer, len) != HAL_OK)
                     Error_Handler();
             }
-//HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
         } // if(bTxUartReady)
 
         if(bRxUartReady) {
@@ -420,6 +419,7 @@ HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c) {
 // This function freeze the hardware resources used
 // @param hi2c: I2C handle pointer
 // @retval None
+
 void
 HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c) {
     if(hi2c->Instance == I2C2) {
@@ -620,14 +620,14 @@ ExecCommand() {
 void
 HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
-        /* Select the next edge of the active transition on the TI2 channel: falling edge */
+        // Select the next edge of the active transition on the TI2 channel: falling edge
         LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_FALLING);
 
         uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
         uhCaptureIndex = 1;
     }
     else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
-        /* Select the next edge of the active transition on the TI2 channel: rising edge */
+        // Select the next edge of the active transition on the TI2 channel: rising edge
         LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
         uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
         /// Echo duration computation
@@ -648,6 +648,7 @@ HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
 // To handle the TIM2 (Periodic Sampler) interrupt.
 void
 TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
+    // Will call ... HAL_TIM_OC_DelayElapsedCallback(&hSamplingTimer)
     HAL_TIM_IRQHandler(&hSamplingTimer);
 }
 
@@ -655,6 +656,9 @@ TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
 
 void
 TIM5_IRQHandler(void) {
+    // Will call ... HAL_TIM_OC_DelayElapsedCallback(&hSonarTimer)
+    HAL_TIM_IRQHandler(&hSonarTimer);
+/*
     if(LL_TIM_IsActiveFlag_CC1(TIM5) == 1) {
         TimerCaptureCompare_Callback();
         LL_TIM_ClearFlag_CC1(TIM5);
@@ -664,9 +668,11 @@ TIM5_IRQHandler(void) {
         EchoTimerCaptureCallback();
         LL_TIM_ClearFlag_CC2(TIM5);
     }
+*/
 }
 
 
+/*
 void
 TimerCaptureCompare_Callback(void) {
     double CNT = double(LL_TIM_GetCounter(TIM5));
@@ -698,12 +704,14 @@ EchoTimerCaptureCallback() {
         uhCaptureIndex = 0;
     }
 }
-
+*/
 
  // To Restart Periodic Timers
 void
 HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
-    if(hSamplingTimer.Channel == HAL_TIM_ACTIVE_CHANNEL_4) { // Is it time to Update AHRS Data ?
+    if(htim->Instance == hSonarTimer.Instance)
+        return;
+    if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) { // Is it time to Update AHRS Data ?
         htim->Instance->CCR4 += AHRSSamplingPulses;
         if(bAHRSpresent) {
             Acc.get_Gxyz(&AHRSvalues[0]);
@@ -737,6 +745,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
             bConnected = false;
         else
             bOldConnectionStatus = !bOldConnectionStatus;
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
 }
 

@@ -289,7 +289,9 @@ RightEncoderTimerInit(void) {
 }
 
 
-// Sonar radar
+// Sonar Radar (TIM5 - 32 bit General Purpose Timer)
+// Counter will stops counting at each update event.
+// Then we CAN'T USE TIM5 to detect the Echo Signal !!!
 void
 SonarTimerInit(void) {
     initTim5GPIO();
@@ -297,7 +299,7 @@ SonarTimerInit(void) {
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarTimerClockFrequency)-1;
     uint16_t PulseWidthNumber = sonarPulseWidth*sonarTimerClockFrequency;
     uint16_t PulseDelayNumber = sonarPulseDelay*sonarTimerClockFrequency;
-    uint16_t period = PulseWidthNumber+PulseDelayNumber;
+    uint16_t PulseTotal       = PulseWidthNumber+PulseDelayNumber;
 
     __HAL_RCC_TIM5_CLK_ENABLE();
 
@@ -308,9 +310,11 @@ SonarTimerInit(void) {
     hSonarTimer.Instance = TIM5;
     hSonarTimer.Init.Prescaler         = uwPrescalerValue;
     hSonarTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hSonarTimer.Init.Period            = period; // Pulse Total
+    hSonarTimer.Init.Period            = PulseTotal;
     hSonarTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     hSonarTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    // Counter stops counting at the next update event
+    // Then we CAN'T USE TIM5 to detect the Echo Signal !!!
     if(HAL_TIM_OnePulse_Init(&hSonarTimer, TIM_OPMODE_SINGLE) != HAL_OK) {
         Error_Handler();
     }
@@ -319,7 +323,7 @@ SonarTimerInit(void) {
     LL_TIM_OC_SetMode(TIM5,  LL_TIM_CHANNEL_CH1,  LL_TIM_OCMODE_PWM2);
     LL_TIM_OC_ConfigOutput(TIM5, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH | LL_TIM_OCIDLESTATE_LOW);
 
-    // Enable the capture/compare interrupt for channel 1
+    // Enable the capture/compare interrupt for TIM5 Channel 1
     LL_TIM_EnableIT_CC1(TIM5);
 
     //*************************+
@@ -328,7 +332,11 @@ SonarTimerInit(void) {
     LL_TIM_CC_EnableChannel(TIM5, LL_TIM_CHANNEL_CH1);
     LL_TIM_EnableAllOutputs(TIM5);
     LL_TIM_GenerateEvent_UPDATE(TIM5); // Force update generation
+
 /*
+ *  NO !!! The Counter will stops at each next update event
+ *  So it can't be used to measure the echo width.
+ *
     //===========================================+
     // Program Channel 2 to act as Input Capture |
     //===========================================+
@@ -415,9 +423,8 @@ initTim5GPIO() { // Sonar radar
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
     // TIM5 GPIO Configuration
-    //    PA0  ------> TIM5_CH1 (Pulse Output            CN7  - 28)
-    //    PA1  ------> TIM5_CH2 (Echo Input 5V Tolerant  CN7  - 30)
-    GPIO_InitStruct.Pin       = GPIO_PIN_0 | GPIO_PIN_1;
+    //    PA0  ------> TIM5_CH1 (Pulse Output CN7  - 28)
+    GPIO_InitStruct.Pin       = GPIO_PIN_0;
     GPIO_InitStruct.Pull      = GPIO_PULLUP;
     GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
