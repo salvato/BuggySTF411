@@ -108,10 +108,10 @@ extern TIM_HandleTypeDef hSonarPulseTimer; // To Generate the Radar Trigger Puls
 
 
 // Defined in main.cpp
-extern double periodicCounterClock;     // 10MHz
-extern double sonarTimerClockFrequency; // 10MHz (100ns period)
-extern double sonarPulseDelay;          // in seconds
-extern double sonarPulseWidth;          // in seconds
+extern double periodicCounterClock; // 10MHz
+extern double sonarClockFrequency;  // 10MHz (100ns period)
+extern double sonarPulseDelay;      // in seconds
+extern double sonarPulseWidth;      // in seconds
 
 
 
@@ -303,7 +303,7 @@ SonarEchoTimerInit(void) {
 
     __HAL_RCC_TIM5_CLK_ENABLE();
 
-    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarTimerClockFrequency)-1;
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarClockFrequency)-1;
 
     memset(&hSonarEchoTimer, 0, sizeof(hSonarEchoTimer));
     hSonarEchoTimer.Instance = TIM5;
@@ -352,9 +352,9 @@ void
 SonarPulseTimerInit(void) {
     initTim10GPIO();
 
-    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarTimerClockFrequency)-1;
-    uint16_t PulseWidthNumber = sonarPulseWidth*sonarTimerClockFrequency;
-    uint16_t PulseDelayNumber = sonarPulseDelay*sonarTimerClockFrequency;
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarClockFrequency)-1;
+    uint16_t PulseWidthNumber = sonarPulseWidth*sonarClockFrequency;
+    uint16_t PulseDelayNumber = sonarPulseDelay*sonarClockFrequency;
     uint16_t PulseTotal       = PulseWidthNumber+PulseDelayNumber;
 
     __HAL_RCC_TIM10_CLK_ENABLE();

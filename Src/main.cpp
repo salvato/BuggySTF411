@@ -118,10 +118,10 @@ TIM_HandleTypeDef hSonarEchoTimer; // To Measure the Radar Echo Pulse Duration
 TIM_HandleTypeDef hSonarPulseTimer; // To Measure the Radar Echo Pulse Duration
 
 
-double periodicCounterClock     = 10.0e6;  // 10MHz
-double sonarTimerClockFrequency = 10.0e6;  // 10MHz (100ns period)
-double sonarPulseDelay          = 10.0e-6; // in seconds
-double sonarPulseWidth          = 10.0e-6; // in seconds
+double periodicCounterClock  = 10.0e6;  // 10MHz
+double sonarClockFrequency   = 10.0e6;  // 10MHz (100ns period)
+double sonarPulseDelay       = 10.0e-6; // in seconds
+double sonarPulseWidth       = 10.0e-6; // in seconds
 
 
 //==================
