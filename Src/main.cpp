@@ -656,6 +656,7 @@ TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
 
 void
 TIM5_IRQHandler(void) {
+    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     // Will call ... HAL_TIM_OC_DelayElapsedCallback(&hSonarTimer)
     HAL_TIM_IRQHandler(&hSonarTimer);
 /*
@@ -745,7 +746,6 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
             bConnected = false;
         else
             bOldConnectionStatus = !bOldConnectionStatus;
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     }
 }
 
@@ -830,5 +830,11 @@ HAL_UART_ErrorCallback(UART_HandleTypeDef *UartHandle) {
 #ifdef  USE_FULL_ASSERT
 void
 assert_failed(uint8_t *file, uint32_t line) {
+    sprintf((char *)txBuffer, "%s - line: %d", file, line);
+    HAL_UART_Transmit(&huart2, txBuffer, strlen((char*)txBuffer), 1000);
+    while(true) {
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+        HAL_Delay(200);
+    }
 }
 #endif // USE_FULL_ASSERT
