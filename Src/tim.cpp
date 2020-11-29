@@ -313,8 +313,8 @@ SonarTimerInit(void) {
     hSonarTimer.Init.Period            = PulseTotal;
     hSonarTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     hSonarTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-    // Counter stops counting at the next update event
-    // Then we CAN'T USE TIM5 to detect the Echo Signal !!!
+    // Counter will stops counting at each next update event
+    // Then we CAN'T USE TIM5 to detect the Echo Signal !!!!
     if(HAL_TIM_OnePulse_Init(&hSonarTimer, TIM_OPMODE_SINGLE) != HAL_OK) {
         Error_Handler();
     }
