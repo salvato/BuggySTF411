@@ -12,7 +12,8 @@ void SamplingTimerInit(uint32_t AHRSSamplingPeriod,
                        uint32_t sonarSamplingPeriod);
 void PwmTimerInit(void);
 void RightEncoderTimerInit(void);
-void SonarTimerInit(void);
+void SonarEchoTimerInit(void);
+void SonarPulseTimerInit(void);
 
 void initTim1GPIO();
 void initTim3GPIO();

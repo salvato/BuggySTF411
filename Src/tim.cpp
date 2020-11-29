@@ -103,7 +103,8 @@ extern TIM_HandleTypeDef hLeftEncodertimer;
 extern TIM_HandleTypeDef hSamplingTimer;
 extern TIM_HandleTypeDef hPwmTimer;
 extern TIM_HandleTypeDef hRightEncodertimer;
-extern TIM_HandleTypeDef hSonarTimer; // To Measure the Radar Echo Pulse Duration
+extern TIM_HandleTypeDef hSonarEchoTimer; // To Measure the Radar Echo Pulse Duration
+extern TIM_HandleTypeDef hSonarPulseTimer; // To Generate the Radar Trigger Pulse
 
 
 // Defined in main.cpp
@@ -295,52 +296,25 @@ RightEncoderTimerInit(void) {
 }
 
 
-// Sonar Radar (TIM10 - 16 bit General Purpose Timer)
-// Counter will stops counting at each update event.
+// Sonar Echo (TIM5 - 32 bit General Purpose Timer)
 void
-SonarTimerInit(void) {
-    initTim10GPIO();
+SonarEchoTimerInit(void) {
+    initTim5GPIO();
+
+    __HAL_RCC_TIM5_CLK_ENABLE();
 
     uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarTimerClockFrequency)-1;
-    uint16_t PulseWidthNumber = sonarPulseWidth*sonarTimerClockFrequency;
-    uint16_t PulseDelayNumber = sonarPulseDelay*sonarTimerClockFrequency;
-    uint16_t PulseTotal       = PulseWidthNumber+PulseDelayNumber;
 
-    __HAL_RCC_TIM10_CLK_ENABLE();
-
-//    NVIC_SetPriority(TIM1_UP_TIM10_IRQn, 0);
-//    NVIC_EnableIRQ(TIM1_UP_TIM10_IRQn); // The Global Interrupt
-
-    memset(&hSonarTimer, 0, sizeof(hSonarTimer));
-    hSonarTimer.Instance = TIM10;
-    hSonarTimer.Init.Prescaler         = uwPrescalerValue;
-    hSonarTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hSonarTimer.Init.Period            = PulseTotal;
-    hSonarTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-    hSonarTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-    // Counter will stops counting at each next update event
-    if(HAL_TIM_OnePulse_Init(&hSonarTimer, TIM_OPMODE_SINGLE) != HAL_OK) {
+    memset(&hSonarEchoTimer, 0, sizeof(hSonarEchoTimer));
+    hSonarEchoTimer.Instance = TIM5;
+    hSonarEchoTimer.Init.Prescaler         = uwPrescalerValue;
+    hSonarEchoTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    hSonarEchoTimer.Init.Period            = 0xFFFFFFFF;
+    hSonarEchoTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    hSonarEchoTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    if(HAL_TIM_IC_Init(&hSonarEchoTimer) != HAL_OK) {
         Error_Handler();
     }
-
-    LL_TIM_OC_SetCompareCH1(TIM10, PulseDelayNumber); // Pulse Delay
-    LL_TIM_OC_SetMode(TIM10,  LL_TIM_CHANNEL_CH1,  LL_TIM_OCMODE_PWM2);
-    LL_TIM_OC_ConfigOutput(TIM10, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH | LL_TIM_OCIDLESTATE_LOW);
-
-    // Enable the capture/compare interrupt for TIM5 Channel 1
-//    LL_TIM_EnableIT_CC1(TIM10);
-
-    //*************************+
-    // Start pulse generation  |
-    //*************************+
-    LL_TIM_CC_EnableChannel(TIM10, LL_TIM_CHANNEL_CH1);
-    LL_TIM_EnableAllOutputs(TIM10);
-    LL_TIM_GenerateEvent_UPDATE(TIM10); // Force update generation
-
-/*
- *  NO !!! The Counter will stops at each next update event
- *  So it can't be used to measure the echo width.
- *
     //===========================================+
     // Program Channel 2 to act as Input Capture |
     //===========================================+
@@ -366,7 +340,47 @@ SonarTimerInit(void) {
     //=====================================================+
     // Configure the NVIC to handle TIM5 Global Interrupt  |
     //=====================================================+
-*/
+
+    NVIC_SetPriority(TIM5_IRQn, 0);
+    NVIC_EnableIRQ(TIM5_IRQn); // The Global Interrupt
+}
+
+
+// Sonar Radar (TIM10 - 16 bit General Purpose Timer)
+// Counter will stops counting at each update event.
+void
+SonarPulseTimerInit(void) {
+    initTim10GPIO();
+
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/sonarTimerClockFrequency)-1;
+    uint16_t PulseWidthNumber = sonarPulseWidth*sonarTimerClockFrequency;
+    uint16_t PulseDelayNumber = sonarPulseDelay*sonarTimerClockFrequency;
+    uint16_t PulseTotal       = PulseWidthNumber+PulseDelayNumber;
+
+    __HAL_RCC_TIM10_CLK_ENABLE();
+
+    memset(&hSonarPulseTimer, 0, sizeof(hSonarPulseTimer));
+    hSonarPulseTimer.Instance = TIM10;
+    hSonarPulseTimer.Init.Prescaler         = uwPrescalerValue;
+    hSonarPulseTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    hSonarPulseTimer.Init.Period            = PulseTotal;
+    hSonarPulseTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    hSonarPulseTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    // Counter will stops counting at each next update event
+    if(HAL_TIM_OnePulse_Init(&hSonarPulseTimer, TIM_OPMODE_SINGLE) != HAL_OK) {
+        Error_Handler();
+    }
+
+    LL_TIM_OC_SetCompareCH1(TIM10, PulseDelayNumber); // Pulse Delay
+    LL_TIM_OC_SetMode(TIM10,  LL_TIM_CHANNEL_CH1,  LL_TIM_OCMODE_PWM2);
+    LL_TIM_OC_ConfigOutput(TIM10, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH | LL_TIM_OCIDLESTATE_LOW);
+
+    //*************************+
+    // Start pulse generation  |
+    //*************************+
+    LL_TIM_CC_EnableChannel(TIM10, LL_TIM_CHANNEL_CH1);
+    LL_TIM_EnableAllOutputs(TIM10);
+    LL_TIM_GenerateEvent_UPDATE(TIM10); // Force update generation
 }
 
 
@@ -426,9 +440,9 @@ initTim5GPIO() { // Sonar radar
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOA_CLK_ENABLE();
-    // TIM5 GPIO Configuration
-    //    PA0  ------> TIM5_CH1 (Pulse Output CN7 - 28)
-    GPIO_InitStruct.Pin       = GPIO_PIN_0;
+    // TIM5 GPIO ConfigurationTIM10
+    //    PA1 ---> TIM5_CH2 (Echo In CN7 - 30) 5V Tolerant
+    GPIO_InitStruct.Pin       = GPIO_PIN_1;
     GPIO_InitStruct.Pull      = GPIO_PULLUP;
     GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_PP;
@@ -438,7 +452,7 @@ initTim5GPIO() { // Sonar radar
 
 
 void
-initTim10GPIO() { // Sonar radar
+initTim10GPIO() { // Sonar Pulse
     GPIO_InitTypeDef GPIO_InitStruct;
     memset(&GPIO_InitStruct, 0, sizeof(GPIO_InitStruct));
     __HAL_RCC_GPIOB_CLK_ENABLE();
