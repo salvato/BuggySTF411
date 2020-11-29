@@ -110,18 +110,19 @@
 #define USARt2_RELEASE_RESET() __HAL_RCC_USART2_RELEASE_RESET()
 
 
-TIM_HandleTypeDef hLeftEncodertimer;
-TIM_HandleTypeDef hSamplingTimer;
-TIM_HandleTypeDef hPwmTimer;
-TIM_HandleTypeDef hRightEncodertimer;
-TIM_HandleTypeDef hSonarEchoTimer; // To Measure the Radar Echo Pulse Duration
-TIM_HandleTypeDef hSonarPulseTimer; // To Measure the Radar Echo Pulse Duration
+TIM_HandleTypeDef hSamplingTimer;     // Periodic Sampling Timer
+TIM_HandleTypeDef hLeftEncodertimer;  // Left Motor Encoder Timer
+TIM_HandleTypeDef hRightEncodertimer; // Right Motor Encoder Timer
+TIM_HandleTypeDef hPwmTimer;          // Dc Motors PWM (Speed control)
+TIM_HandleTypeDef hSonarEchoTimer;    // To Measure the Radar Echo Pulse Duration
+TIM_HandleTypeDef hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
 
 
 double periodicCounterClock  = 10.0e6;  // 10MHz
 double sonarClockFrequency   = 10.0e6;  // 10MHz (100ns period)
 double sonarPulseDelay       = 10.0e-6; // in seconds
 double sonarPulseWidth       = 10.0e-6; // in seconds
+double soundSpeed            = 340.0;   // m/s
 
 
 //==================
@@ -159,8 +160,9 @@ uint32_t AHRSSamplingPulses  = uint32_t(periodicCounterClock/AHRSSamplingFrequen
 uint32_t motorSamplingPulses = uint32_t(periodicCounterClock/motorSamplingFrequency+0.5); // [Hz]
 uint32_t sonarSamplingPulses = uint32_t(periodicCounterClock/sonarSamplingFrequency+0.5); // [Hz]
 
-bool bSendAHRS    = false;
-bool bSendMotors  = false;
+bool bSendAHRS     = false;
+bool bSendMotors   = false;
+bool bSendDistance = false;
 
 int     rxBufferSize = 255;
 uint8_t rxBuffer[255];
@@ -178,16 +180,11 @@ volatile bool bConnected           = false;
 volatile bool bNewConnectionStatus = false;
 volatile bool bOldConnectionStatus = bNewConnectionStatus;
 
-/* Captured Values */
+// Captured Values for Echo Width Calculation
 volatile uint32_t uwIC2Value1    = 0;
 volatile uint32_t uwIC2Value2    = 0;
 volatile uint32_t uwDiffCapture  = 0;
-/* Capture index */
 volatile uint16_t uhCaptureIndex = 0;
-/* Frequency Value */
-volatile uint32_t uwFrequency    = 0;
-volatile double uwMeasuredDelay;
-volatile double uwMeasuredPulseLength;
 
 
 //====================================
@@ -225,8 +222,8 @@ Init() {
     PwmTimerInit(); // Initialize the Dc Motors
     // DcMotor(forwardPort, forwardPin, reversePort,  reversePin,
     //         pwmPort,  pwmPin, pwmTimer)
-    pLeftMotor = new DcMotor(GPIOC, GPIO_PIN_8, GPIOC, GPIO_PIN_9,
-                             GPIOA, GPIO_PIN_6, &hPwmTimer, TIM_CHANNEL_1);
+    pLeftMotor  = new DcMotor(GPIOC, GPIO_PIN_8, GPIOC, GPIO_PIN_9,
+                              GPIOA, GPIO_PIN_6, &hPwmTimer, TIM_CHANNEL_1);
     pRightMotor = new DcMotor(GPIOC, GPIO_PIN_10, GPIOC, GPIO_PIN_11,
                               GPIOA, GPIO_PIN_7, &hPwmTimer, TIM_CHANNEL_2);
 
@@ -261,9 +258,6 @@ Init() {
     }
 
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn); // Enable and set Button EXTI Interrupt
-
-    HAL_NVIC_SetPriority(TIM1_TRG_COM_TIM11_IRQn, 0, 1);
-    HAL_NVIC_EnableIRQ(TIM1_TRG_COM_TIM11_IRQn);
 }
 
 
@@ -314,6 +308,7 @@ Wait4Connection() {
 static void
 Loop() {
     int len;
+    HAL_StatusTypeDef result;
     while(true) {
         // Wait Until Connected With Remote
         if(!bConnected) { // Asyncronously Changed Via Interrupts
@@ -336,14 +331,22 @@ Loop() {
             if(bSendMotors) {
                 bSendMotors = false;
                 len += sprintf((char *)&txBuffer[len], ",M,%d,%ld",
-                                  int(pLeftControlledMotor->currentSpeed*100.0),
-                                  long(pLeftControlledMotor->getTotalMove()));
+                               int(pLeftControlledMotor->currentSpeed*100.0),
+                               long(pLeftControlledMotor->getTotalMove()));
+            }
+            if(bSendDistance) {
+                bSendDistance = false;
+                double distance = 0.5* soundSpeed *(double(uwDiffCapture)/sonarClockFrequency); // [m]
+                len += sprintf((char *)&txBuffer[len], ",D,%d",
+                               int(distance*100.0));
             }
             if(len > 0) {
+                HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
                 len += sprintf((char *)&txBuffer[len], ",T,%lu\n",
                                static_cast<unsigned long>(HAL_GetTick()));
                 bTxUartReady = false; // Asyncronously Changed Via Interrupts
-                if(HAL_UART_Transmit_DMA(&huart2, txBuffer, len) != HAL_OK)
+                result = HAL_UART_Transmit_DMA(&huart2, txBuffer, len);
+                if(result != HAL_OK)
                     Error_Handler();
             }
         } // if(bTxUartReady)
@@ -632,16 +635,14 @@ HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
         LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
         uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
         /// Echo duration computation
-        if(uwIC2Value2 > uwIC2Value1) {
+        if(uwIC2Value2 >= uwIC2Value1) {
             uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
         }
         else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
             uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
         }
-        else { // If capture values are equal, we have reached the limit of frequency measures
-            Error_Handler();
-        }
         uhCaptureIndex = 0;
+        bSendDistance = true;
     }
 }
 
@@ -658,13 +659,12 @@ TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
 // To handle the TIM5 (Sonar Echo) interrupt.
 void
 TIM5_IRQHandler(void) {
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
     // Will call ... HAL_TIM_IC_CaptureCallback(&hSonarEchoTimer)
     HAL_TIM_IRQHandler(&hSonarEchoTimer);
 }
 
 
- // To Restart Periodic Timers
+// To Restart Periodic Timers
 void
 HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
     if(htim->Instance == hSamplingTimer.Instance) {

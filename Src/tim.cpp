@@ -99,12 +99,12 @@
 
 
 // Defined in main.cpp
-extern TIM_HandleTypeDef hLeftEncodertimer;
-extern TIM_HandleTypeDef hSamplingTimer;
-extern TIM_HandleTypeDef hPwmTimer;
-extern TIM_HandleTypeDef hRightEncodertimer;
-extern TIM_HandleTypeDef hSonarEchoTimer; // To Measure the Radar Echo Pulse Duration
-extern TIM_HandleTypeDef hSonarPulseTimer; // To Generate the Radar Trigger Pulse
+extern TIM_HandleTypeDef hSamplingTimer;     // Periodic Sampling Timer
+extern TIM_HandleTypeDef hLeftEncodertimer;  // Left Motor Encoder Timer
+extern TIM_HandleTypeDef hRightEncodertimer; // Right Motor Encoder Timer
+extern TIM_HandleTypeDef hPwmTimer;          // Dc Motors PWM (Speed control)
+extern TIM_HandleTypeDef hSonarEchoTimer;    // To Measure the Radar Echo Pulse Duration
+extern TIM_HandleTypeDef hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
 
 
 // Defined in main.cpp
