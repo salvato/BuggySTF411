@@ -18,6 +18,7 @@ void initTim1GPIO();
 void initTim3GPIO();
 void initTim4GPIO();
 void initTim5GPIO();
+void initTim10GPIO();
 
 #ifdef __cplusplus
 }

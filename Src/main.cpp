@@ -741,7 +741,7 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
         htim->Instance->CCR3 += sonarSamplingPulses;
         // Enable counter.
         // The counter will stop automatically at the next update event (UEV).
-        LL_TIM_EnableCounter(TIM5);
+        LL_TIM_EnableCounter(hSonarTimer.Instance);
         if(bOldConnectionStatus != bNewConnectionStatus)
             bConnected = false;
         else
