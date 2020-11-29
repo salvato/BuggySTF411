@@ -618,6 +618,7 @@ ExecCommand() {
 }
 
 
+// Called when the Sonar Echo Signal Change Level
 void
 HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
@@ -654,6 +655,7 @@ TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
 
 
 
+// To handle the TIM5 (Sonar Echo) interrupt.
 void
 TIM5_IRQHandler(void) {
     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
@@ -705,13 +707,14 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
 }
 
 
-// This function handles EXTI line[15:10] interrupts.
+// To handle the EXTI line[15:10] interrupts.
 void
 EXTI15_10_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_GPIO_EXTI_IRQHandler(B1_Pin);
 }
 
 
+// EXTI line[15:10] interrupts handler
 void
 HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if(GPIO_Pin == B1_Pin) {
@@ -721,7 +724,6 @@ HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
 
 // Tx Transfer completed callback
-// UartHandle: UART handle.
 void
 HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
     (void)UartHandle;
@@ -730,7 +732,6 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
 
 
 // Rx Transfer completed callback
-// UartHandle: UART handle
 void
 HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
     (void)UartHandle;
@@ -754,21 +755,21 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
 }
 
 
-// This function handles DMA TX interrupt request.
+// To handle DMA TX interrupt request.
 void
 USART2_DMA_TX_IRQHandler(void) {
     HAL_DMA_IRQHandler(huart2.hdmatx);
 }
 
 
-// This function handles DMA RX interrupt request.
+// To handle DMA RX interrupt request.
 void
 USART2_DMA_RX_IRQHandler(void) {
     HAL_DMA_IRQHandler(huart2.hdmarx);
 }
 
 
-// This function handles USART2 interrupt request.
+// To handle USART2 interrupt request.
 void
 USART2_IRQHandler(void) { // defined in file "startup_stm32f411xe.s"
     HAL_UART_IRQHandler(&huart2);
