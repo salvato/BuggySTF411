@@ -100,8 +100,8 @@
 
 // Defined in main.cpp
 extern TIM_HandleTypeDef hSamplingTimer;     // Periodic Sampling Timer
-extern TIM_HandleTypeDef hLeftEncodertimer;  // Left Motor Encoder Timer
-extern TIM_HandleTypeDef hRightEncodertimer; // Right Motor Encoder Timer
+extern TIM_HandleTypeDef hLeftEncoderTimer;  // Left Motor Encoder Timer
+extern TIM_HandleTypeDef hRightEncoderTimer; // Right Motor Encoder Timer
 extern TIM_HandleTypeDef hPwmTimer;          // Dc Motors PWM (Speed control)
 extern TIM_HandleTypeDef hSonarEchoTimer;    // To Measure the Radar Echo Pulse Duration
 extern TIM_HandleTypeDef hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
@@ -128,13 +128,13 @@ LeftEncoderTimerInit() {
     memset(&sConfig, 0, sizeof(sConfig));
     memset(&sMasterConfig, 0, sizeof(sMasterConfig));
 
-    hLeftEncodertimer.Instance = TIM1;
-    hLeftEncodertimer.Init.Prescaler         = 0;
-    hLeftEncodertimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hLeftEncodertimer.Init.Period            = 0xFFFF;
-    hLeftEncodertimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-    hLeftEncodertimer.Init.RepetitionCounter = 0;
-    hLeftEncodertimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    hLeftEncoderTimer.Instance = TIM1;
+    hLeftEncoderTimer.Init.Prescaler         = 0;
+    hLeftEncoderTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    hLeftEncoderTimer.Init.Period            = 0xFFFF;
+    hLeftEncoderTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    hLeftEncoderTimer.Init.RepetitionCounter = 0;
+    hLeftEncoderTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
     //sConfig.EncoderMode  = TIM_ENCODERMODE_TI1;
     sConfig.EncoderMode  = TIM_ENCODERMODE_TI12;
@@ -146,13 +146,13 @@ LeftEncoderTimerInit() {
     sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
     sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
     sConfig.IC2Filter    = 0;
-    if(HAL_TIM_Encoder_Init(&hLeftEncodertimer, &sConfig) != HAL_OK) {
+    if(HAL_TIM_Encoder_Init(&hLeftEncoderTimer, &sConfig) != HAL_OK) {
         Error_Handler();
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&hLeftEncodertimer, &sMasterConfig) != HAL_OK) {
+    if(HAL_TIMEx_MasterConfigSynchronization(&hLeftEncoderTimer, &sMasterConfig) != HAL_OK) {
         Error_Handler();
     }
 }
@@ -267,13 +267,13 @@ RightEncoderTimerInit(void) {
     memset(&sConfig, 0, sizeof(sConfig));
     memset(&sMasterConfig, 0, sizeof(sMasterConfig));
 
-    hRightEncodertimer.Instance = TIM4;
-    hRightEncodertimer.Init.Prescaler         = 0;
-    hRightEncodertimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hRightEncodertimer.Init.Period            = 0xFFFF;
-    hRightEncodertimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-    hLeftEncodertimer.Init.RepetitionCounter  = 0;
-    hRightEncodertimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    hRightEncoderTimer.Instance = TIM4;
+    hRightEncoderTimer.Init.Prescaler         = 0;
+    hRightEncoderTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    hRightEncoderTimer.Init.Period            = 0xFFFF;
+    hRightEncoderTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    hRightEncoderTimer.Init.RepetitionCounter  = 0;
+    hRightEncoderTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 
     //sConfig.EncoderMode  = TIM_ENCODERMODE_TI1;
     sConfig.EncoderMode  = TIM_ENCODERMODE_TI2;
@@ -285,13 +285,13 @@ RightEncoderTimerInit(void) {
     sConfig.IC2Selection = TIM_ICSELECTION_DIRECTTI;
     sConfig.IC2Prescaler = TIM_ICPSC_DIV1;
     sConfig.IC2Filter    = 0;
-    if(HAL_TIM_Encoder_Init(&hRightEncodertimer, &sConfig) != HAL_OK) {
+    if(HAL_TIM_Encoder_Init(&hRightEncoderTimer, &sConfig) != HAL_OK) {
         Error_Handler();
     }
 
     sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
     sMasterConfig.MasterSlaveMode     = TIM_MASTERSLAVEMODE_DISABLE;
-    if(HAL_TIMEx_MasterConfigSynchronization(&hRightEncodertimer, &sMasterConfig) != HAL_OK) {
+    if(HAL_TIMEx_MasterConfigSynchronization(&hRightEncoderTimer, &sMasterConfig) != HAL_OK) {
         Error_Handler();
     }
 }

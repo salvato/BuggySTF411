@@ -105,8 +105,8 @@
 
 
 TIM_HandleTypeDef  hSamplingTimer;     // Periodic Sampling Timer
-TIM_HandleTypeDef  hLeftEncodertimer;  // Left Motor Encoder Timer
-TIM_HandleTypeDef  hRightEncodertimer; // Right Motor Encoder Timer
+TIM_HandleTypeDef  hLeftEncoderTimer;  // Left Motor Encoder Timer
+TIM_HandleTypeDef  hRightEncoderTimer; // Right Motor Encoder Timer
 TIM_HandleTypeDef  hPwmTimer;          // Dc Motors PWM (Speed control)
 TIM_HandleTypeDef  hSonarEchoTimer;    // To Measure the Radar Echo Pulse Duration
 TIM_HandleTypeDef  hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
@@ -211,8 +211,8 @@ Init() {
 
     LeftEncoderTimerInit();  // Initialize Left Motor Encoder
     RightEncoderTimerInit(); // Initialize Right Motor Encoder
-    pLeftEncoder = new Encoder(&hLeftEncodertimer);
-    pRightEncoder = new Encoder(&hRightEncodertimer);
+    pLeftEncoder = new Encoder(&hLeftEncoderTimer);
+    pRightEncoder = new Encoder(&hRightEncoderTimer);
 
     PwmTimerInit(); // Initialize the Dc Motors
     // DcMotor(forwardPort, forwardPin, reversePort,  reversePin,
