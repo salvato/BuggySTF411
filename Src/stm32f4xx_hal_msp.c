@@ -22,10 +22,6 @@
 #include "utility.h"
 
 
-extern DMA_HandleTypeDef hdma_usart2_tx;
-extern DMA_HandleTypeDef hdma_usart2_rx;
-
-
 // Initializes the Global MSP.
 void
 HAL_MspInit(void) {

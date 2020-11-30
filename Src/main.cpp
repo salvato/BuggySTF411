@@ -131,7 +131,6 @@ double soundSpeed             = 340.0;   // m/s
 // Private variables
 //==================
 
-
 Encoder*         pLeftEncoder          = nullptr;
 Encoder*         pRightEncoder         = nullptr;
 DcMotor*         pLeftMotor            = nullptr;
@@ -144,6 +143,7 @@ ADXL345  Acc;      // 400KHz I2C Capable. Maximum Output Data Rate is 800 Hz
 ITG3200  Gyro;     // 400KHz I2C Capable
 HMC5883L Magn;     // 400KHz I2C Capable, left at the default 15Hz data Rate
 Madgwick Madgwick; // ~13us per Madgwick.update() with NUCLEO-F411RE
+
 static float q0, q1, q2, q3;
 static volatile float AHRSvalues[9];
 
@@ -232,7 +232,7 @@ Init() {
 
     // Initialize Motor Controllers
     pLeftControlledMotor  = new ControlledMotor(pLeftMotor,  pLeftEncoder,  motorSamplingFrequency);
-//    pRightControlledMotor = new ControlledMotor(pRightMotor, pRightEncoder, motorSamplingFrequency);
+    pRightControlledMotor = new ControlledMotor(pRightMotor, pRightEncoder, motorSamplingFrequency);
 
     SonarEchoTimerInit();
     SonarPulseTimerInit();
@@ -323,9 +323,11 @@ Loop() {
             }
             if(bSendMotors) {
                 bSendMotors = false;
-                len += sprintf((char *)&txBuffer[len], ",M,%d,%ld",
+                len += sprintf((char *)&txBuffer[len], ",M,%d,%ld,%d,%ld",
                                int(pLeftControlledMotor->currentSpeed*100.0),
-                               long(pLeftControlledMotor->getTotalMove()));
+                               long(pLeftControlledMotor->getTotalMove()),
+                               int(pRightControlledMotor->currentSpeed*100.0),
+                               long(pRightControlledMotor->getTotalMove()));
             }
             if(bSendDistance) {
                 bSendDistance = false;
@@ -363,6 +365,7 @@ Loop() {
 ///=======================================================================
 ///                                 End Loop
 ///=======================================================================
+
 
 bool
 AHRS_Init() {
@@ -430,8 +433,7 @@ ExecCommand() {
     if(command[0] == 'L') // Left Motor commands
         pDestinationMotor = pLeftControlledMotor;
     else if(command[0] == 'R') // Right Motor commands
-        return; // <<<<<<<<<<<========================= No Right Motor at Present
-        //pDestinationMotor = pRightControlledMotor;
+        pDestinationMotor = pRightControlledMotor;
     else
         return; // Command Error !
 
