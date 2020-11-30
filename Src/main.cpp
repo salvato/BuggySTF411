@@ -116,11 +116,12 @@ TIM_HandleTypeDef hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
 I2C_HandleTypeDef  hi2c2;
 
 
-double periodicCounterClock  = 10.0e6;  // 10MHz
-double sonarClockFrequency   = 10.0e6;  // 10MHz (100ns period)
-double sonarPulseDelay       = 10.0e-6; // in seconds
-double sonarPulseWidth       = 10.0e-6; // in seconds
-double soundSpeed            = 340.0;   // m/s
+double periodicClockFrequency = 10.0e6;  // 10MHz
+double pwmClockFrequency      = 1.0e6;   // 1MHz
+double sonarClockFrequency    = 10.0e6;  // 10MHz (100ns period)
+double sonarPulseDelay        = 10.0e-6; // in seconds
+double sonarPulseWidth        = 10.0e-6; // in seconds
+double soundSpeed             = 340.0;   // m/s
 
 
 //==================
@@ -153,9 +154,9 @@ uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
 uint32_t sonarSamplingFrequency  = 5;   // [Hz]
 
-uint32_t AHRSSamplingPulses  = uint32_t(periodicCounterClock/AHRSSamplingFrequency +0.5);  // [Hz]
-uint32_t motorSamplingPulses = uint32_t(periodicCounterClock/motorSamplingFrequency+0.5); // [Hz]
-uint32_t sonarSamplingPulses = uint32_t(periodicCounterClock/sonarSamplingFrequency+0.5); // [Hz]
+uint32_t AHRSSamplingPulses  = uint32_t(periodicClockFrequency/AHRSSamplingFrequency +0.5);  // [Hz]
+uint32_t motorSamplingPulses = uint32_t(periodicClockFrequency/motorSamplingFrequency+0.5); // [Hz]
+uint32_t sonarSamplingPulses = uint32_t(periodicClockFrequency/sonarSamplingFrequency+0.5); // [Hz]
 
 bool bSendAHRS     = false;
 bool bSendMotors   = false;

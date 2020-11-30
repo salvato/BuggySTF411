@@ -2,6 +2,8 @@
 
 #include <stm32f4xx_hal.h>
 
+#define N_AVG 7
+
 class Encoder
 {
 public:
@@ -18,4 +20,6 @@ private:
     TIM_HandleTypeDef* htimer;
     uint32_t           encoderChannel;
     uint32_t           total;
+    int currElement;
+    int countHistory[N_AVG];
 };

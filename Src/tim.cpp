@@ -108,10 +108,12 @@ extern TIM_HandleTypeDef hSonarPulseTimer;   // To Generate the Radar Trigger Pu
 
 
 // Defined in main.cpp
-extern double periodicCounterClock; // 10MHz
-extern double sonarClockFrequency;  // 10MHz (100ns period)
-extern double sonarPulseDelay;      // in seconds
-extern double sonarPulseWidth;      // in seconds
+extern double periodicClockFrequency; // 10MHz
+extern double pwmClockFrequency;      // 1MHz
+extern double sonarClockFrequency;    // 10MHz (100ns period)
+extern double sonarPulseDelay;        // in seconds
+extern double sonarPulseWidth;        // in seconds
+extern double soundSpeed;             // m/s
 
 
 
@@ -165,7 +167,7 @@ SamplingTimerInit(uint32_t AHRSSamplingPeriod,
     __HAL_RCC_TIM2_CLK_ENABLE();
 
     // Prescaler value to have a 10MHz TIM2 Input Counter Clock
-    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/periodicCounterClock)-1;
+    uint32_t uwPrescalerValue = (uint32_t) (SystemCoreClock/periodicClockFrequency)-1;
 
     hSamplingTimer.Instance = TIM2;
     hSamplingTimer.Init.Period            = 0xFFFFFFFF;             // ARR register (32 bit)
@@ -222,8 +224,7 @@ PwmTimerInit(void) {
     memset(&sMasterConfig,      0, sizeof(sMasterConfig));
     memset(&sConfigOC,          0, sizeof(sConfigOC));
 
-    // Compute the prescaler value to have TIM3 counter clock equal to 128KHz
-    uint32_t uhPrescalerValue = (uint32_t)(SystemCoreClock / 128000) - 1;
+    uint32_t uhPrescalerValue = (uint32_t)(SystemCoreClock/pwmClockFrequency) - 1;
 
     hPwmTimer.Instance = TIM3;
     hPwmTimer.Init.Prescaler         = uhPrescalerValue;
@@ -238,7 +239,7 @@ PwmTimerInit(void) {
     sConfigOC.OCMode     = TIM_OCMODE_PWM1;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-    sConfigOC.Pulse      = 128;
+    sConfigOC.Pulse      = 0;
 
     if (HAL_TIM_PWM_ConfigChannel(&hPwmTimer, &sConfigOC, TIM_CHANNEL_1) != HAL_OK) {
         Error_Handler();

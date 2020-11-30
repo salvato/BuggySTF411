@@ -1,5 +1,6 @@
 #include "encoder.h"
-#include "string.h" // for memset()
+#include "utility.h"
+#include "string.h"
 
 
 // 12 CPR Quadrature Encoder ??
@@ -12,13 +13,16 @@ Encoder::Encoder(TIM_HandleTypeDef *hEncodertimer)
     : htimer(hEncodertimer)
     , total(0)
 {
+    currElement = 0;
+    memset(countHistory, 0, sizeof(countHistory));
     start();
 }
 
 
 void
 Encoder::start() {
-    HAL_TIM_Encoder_Start(htimer, TIM_CHANNEL_ALL);
+    if(HAL_TIM_Encoder_Start(htimer, TIM_CHANNEL_ALL))
+        Error_Handler();
 }
 
 
@@ -26,7 +30,14 @@ double
 Encoder::read() { // in Giri Motore
     int16_t counts = int16_t(htimer->Instance->CNT);
     total += counts;
-    return double(counts)/CountsPerTurn;
+    countHistory[currElement] = counts;
+    currElement++;
+    currElement = currElement % N_AVG;
+    double avgCounts = 0;
+    for(int i=0; i<N_AVG; i++) {
+        avgCounts += countHistory[i];
+    }
+    return avgCounts/(CountsPerTurn*N_AVG);
 }
 
 
@@ -61,5 +72,12 @@ Encoder::readAndReset() { // in Giri Motore
     int16_t counts = int16_t(htimer->Instance->CNT);
     total += counts;
     htimer->Instance->CNT = 0;
-    return double(counts)/CountsPerTurn;
+    countHistory[currElement] = counts;
+    currElement++;
+    currElement = currElement % N_AVG;
+    double avgCounts = 0;
+    for(int i=0; i<N_AVG; i++) {
+        avgCounts += countHistory[i];
+    }
+    return avgCounts/(CountsPerTurn*N_AVG);
 }
