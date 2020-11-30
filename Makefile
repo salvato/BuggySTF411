@@ -63,6 +63,7 @@ Src/system_stm32f4xx.c
 CXX_SOURCES =  \
 Src/main.cpp \
 Src/tim.cpp \
+Src/i2c.cpp \
 Src/encoder.cpp \
 Src/dcmotor.cpp \
 Src/utility.cpp \
