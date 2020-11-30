@@ -1,10 +1,10 @@
 #pragma once
 
+#include "stm32f4xx_hal.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "stm32f4xx_hal.h"
 
 void LeftEncoderTimerInit(void);
 void SamplingTimerInit(uint32_t AHRSSamplingPeriod,

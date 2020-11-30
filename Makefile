@@ -64,6 +64,7 @@ CXX_SOURCES =  \
 Src/main.cpp \
 Src/tim.cpp \
 Src/i2c.cpp \
+Src/uart.cpp \
 Src/encoder.cpp \
 Src/dcmotor.cpp \
 Src/utility.cpp \
