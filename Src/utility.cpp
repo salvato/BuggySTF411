@@ -55,20 +55,20 @@ GPIO_Init(void) {
     HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
     // Left Motor IN1
-    GPIO_InitStruct.Pin   = GPIO_PIN_8;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    GPIO_InitStruct.Pin   = LMOTOR_IN1;
+    HAL_GPIO_Init(LM_IN1_PORT, &GPIO_InitStruct);
 
     // Left Motor IN2
-    GPIO_InitStruct.Pin   = GPIO_PIN_9;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    GPIO_InitStruct.Pin   = LMOTOR_IN2;
+    HAL_GPIO_Init(LM_IN2_PORT, &GPIO_InitStruct);
 
     // Right Motor IN3
-    GPIO_InitStruct.Pin   = GPIO_PIN_10;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    GPIO_InitStruct.Pin   = LMOTOR_IN3;
+    HAL_GPIO_Init(RM_IN3_PORT, &GPIO_InitStruct);
 
     // Right Motor IN4
-    GPIO_InitStruct.Pin   = GPIO_PIN_11;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    GPIO_InitStruct.Pin   = LMOTOR_IN4;
+    HAL_GPIO_Init(RM_IN4_PORT, &GPIO_InitStruct);
 }
 
 
