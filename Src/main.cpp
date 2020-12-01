@@ -462,29 +462,12 @@ ExecCommand() {
 }
 
 
-// Called when the Sonar Echo Signal Change Level
+// Initializes the Global MSP.
 void
-HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
-    if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
-        // Select the next edge of the active transition on the TI2 channel: falling edge
-        LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_FALLING);
-        uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-        uhCaptureIndex = 1;
-    }
-    else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
-        // Select the next edge of the active transition on the TI2 channel: rising edge
-        LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
-        uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
-        /// Echo duration computation
-        if(uwIC2Value2 >= uwIC2Value1) {
-            uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
-        }
-        else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
-            uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
-        }
-        uhCaptureIndex = 0;
-        bSendDistance = true;
-    }
+HAL_MspInit(void) {
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
+    __HAL_RCC_PWR_CLK_ENABLE();
+    HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_0);
 }
 
 
@@ -493,15 +476,6 @@ void
 TIM2_IRQHandler(void) { // Defined in file "startup_stm32f411xe.s"
     // Will call ... HAL_TIM_OC_DelayElapsedCallback(&hSamplingTimer)
     HAL_TIM_IRQHandler(&hSamplingTimer);
-}
-
-
-
-// To handle the TIM5 (Sonar Echo) interrupt.
-void
-TIM5_IRQHandler(void) {
-    // Will call ... HAL_TIM_IC_CaptureCallback(&hSonarEchoTimer)
-    HAL_TIM_IRQHandler(&hSonarEchoTimer);
 }
 
 
@@ -544,6 +518,40 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
                 bOldConnectionStatus = !bOldConnectionStatus;
         }
     } // htim->Instance == hSamplingTimer.Instance
+}
+
+
+// To handle the TIM5 (Sonar Echo) interrupt.
+void
+TIM5_IRQHandler(void) {
+    // Will call ... HAL_TIM_IC_CaptureCallback(&hSonarEchoTimer)
+    HAL_TIM_IRQHandler(&hSonarEchoTimer);
+}
+
+
+// Called when the Sonar Echo Signal Change Level
+void
+HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+    if(uhCaptureIndex == 0) { // Get the 1st Input Capture value
+        // Select the next edge of the active transition on the TI2 channel: falling edge
+        LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_FALLING);
+        uwIC2Value1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+        uhCaptureIndex = 1;
+    }
+    else if(uhCaptureIndex == 1) { // Get the 2nd Input Capture value
+        // Select the next edge of the active transition on the TI2 channel: rising edge
+        LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
+        uwIC2Value2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
+        /// Echo duration computation
+        if(uwIC2Value2 >= uwIC2Value1) {
+            uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
+        }
+        else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
+            uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
+        }
+        uhCaptureIndex = 0;
+        bSendDistance = true;
+    }
 }
 
 
