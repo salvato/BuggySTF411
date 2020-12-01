@@ -183,6 +183,8 @@ volatile uint32_t uwIC2Value2    = 0;
 volatile uint32_t uwDiffCapture  = 0;
 volatile uint16_t uhCaptureIndex = 0;
 
+double x[3]; // Position
+double v[3]; // Speed
 
 //====================================
 // Private function prototypes
@@ -318,8 +320,9 @@ Loop() {
             if(bSendAHRS) {
                 bSendAHRS = false;
                 Madgwick.getRotation(&q0, &q1, &q2, &q3);
-                len = sprintf((char *)txBuffer, "A,%d,%d,%d,%d",
-                              int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0));
+                len = sprintf((char *)txBuffer, "A,%d,%d,%d,%d,%d,%d,%d",
+                              int(q0*1000.0), int(q1*1000.0), int(q2*1000.0), int(q3*1000.0),
+                              int(x[0]*100.0), int(x[1]*100.0), int(x[2]*100.0));
             }
             if(bSendMotors) {
                 bSendMotors = false;
@@ -402,7 +405,7 @@ AHRS_Init_Position() {
     Gyro.readGyro(&AHRSvalues[3]);
     while(!Magn.isDataReady()) {}
     Magn.ReadScaledAxis(&AHRSvalues[6]);
-// Initial estimate of the attitude (assumed a static sensor !)
+// Initial estimate of the attitude (assuming a static sensor !)
     for(int i=0; i<20000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
         Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5], // Gyro in degrees/sec
                         AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
@@ -418,6 +421,8 @@ ExecCommand() {
         return;
     }
     if(command[0] == 'G') { // Go
+        x[0] = x[1] = x[2] = 0;
+        v[0] = v[1] = v[2] = 0;
         return;
     }
     else if(command[0] == 'H') { // Halt
@@ -492,6 +497,11 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
                 Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
                                 AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
                                 AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
+                // Compute the new Buggy position by integrating the motion equations
+                for(int i=0; i<3; i++) {
+                    v[i] += AHRSvalues[i] / AHRSSamplingFrequency;
+                    x[i] += v[i] /AHRSSamplingFrequency;
+                }
                 bSendAHRS = true;
             }
             //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
