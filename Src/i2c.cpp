@@ -40,8 +40,8 @@ HAL_I2C_MspInit(I2C_HandleTypeDef* hi2c) {
     if(hi2c->Instance==I2C2) {
         __HAL_RCC_GPIOB_CLK_ENABLE();
         // I2C2 GPIO Configuration
-        // PB10  ------> I2C2_SCL
-        // PB3   ------> I2C2_SDA
+        // PB10  ------> I2C2_SCL (CN10 - 25)
+        // PB3   ------> I2C2_SDA (CN10 - 31)
         GPIO_InitStruct.Pin       = GPIO_PIN_10;
         GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
         GPIO_InitStruct.Pull      = GPIO_PULLUP;

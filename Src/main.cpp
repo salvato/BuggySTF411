@@ -225,7 +225,7 @@ Init() {
     // Initialize the Periodic Samplig Timer
     SamplingTimerInit(AHRSSamplingPulses, motorSamplingPulses, sonarSamplingPulses);
 
-    I2C2_Init(); // Initialize the 10DOF Sensor
+    I2C2_Init(); // Initialize the 10DOF Sensor (Wide power input range from 3 to 5 volts)
     bAHRSpresent = AHRS_Init();
     if(bAHRSpresent) // 10DOF Sensor Position Initialization
         AHRS_Init_Position();
@@ -377,7 +377,7 @@ AHRS_Init() {
     if(!Gyro.init(ITG3200_ADDR_AD0_LOW, &hi2c2))
         return false;
     HAL_Delay(100);
-    Gyro.zeroCalibrate(600); // calibrate the ITG3200
+    Gyro.zeroCalibrate(1200); // calibrate the ITG3200
 // Magnetometer Init
     if(!Magn.init(HMC5883L_Address, &hi2c2))
         return false;
@@ -403,7 +403,7 @@ AHRS_Init_Position() {
     while(!Magn.isDataReady()) {}
     Magn.ReadScaledAxis(&AHRSvalues[6]);
 // Initial estimate of the attitude (assumed a static sensor !)
-    for(int i=0; i<10000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
+    for(int i=0; i<20000; i++) { // ~13us per Madgwick.update() with NUCLEO-F411RE
         Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5], // Gyro in degrees/sec
                         AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
                         AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);// Mag
@@ -515,10 +515,9 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
                 Acc.get_Gxyz(&AHRSvalues[0]);
                 Gyro.readGyro(&AHRSvalues[3], &AHRSvalues[4], &AHRSvalues[5]);
                 Magn.ReadScaledAxis(&AHRSvalues[6]);
-                for(int i=0; i<3; i++) // ~13us per call...
-                    Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
-                                    AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
-                                    AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
+                Madgwick.update(AHRSvalues[3], AHRSvalues[4], AHRSvalues[5],
+                                AHRSvalues[0], AHRSvalues[1], AHRSvalues[2],
+                                AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);
                 bSendAHRS = true;
             }
             //HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);

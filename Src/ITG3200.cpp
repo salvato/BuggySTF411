@@ -22,16 +22,19 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <array>
-#include "main.h"
+#include "utility.h"
 
-extern void Error_Handler(void);
+
+//=======================+
+// Returns Data in °/sec |
+//=======================+
 
 
 ITG3200::ITG3200() {
-    pHi2c       = nullptr;
+    pHi2c = nullptr;
     dev_address = ITG3200_ADDR_AD0_LOW << 1;
     setGains(1.0, 1.0, 1.0);
-    setOffsets(0.0, 0.0, 0.0);
+    setOffsets(-7.0, -10.0, -7.0);
     setRevPolarity(false, false, false);
 }
 
@@ -65,7 +68,13 @@ ITG3200::init(uint16_t  _address, I2C_HandleTypeDef *_pHi2c) {
 
 
 void
-ITG3200::init(byte _SRateDiv, byte _Range, byte _filterBW, byte _ClockSrc, uint8_t _ITGReady, uint8_t _INTRawDataReady) {
+ITG3200::init(byte    _SRateDiv,
+              byte    _Range,
+              byte    _filterBW,
+              byte    _ClockSrc,
+              uint8_t _ITGReady,
+              uint8_t _INTRawDataReady)
+{
     HAL_Delay(GYROSTART_UP_DELAY);
     setClockSource(_ClockSrc);
     HAL_Delay(GYROSTART_UP_DELAY);
@@ -286,9 +295,9 @@ ITG3200::zeroCalibrate(uint16_t totSamples) {
         tmpOffsets[1] += float(xyz[1]);
         tmpOffsets[2] += float(xyz[2]);
     }
-    setOffsets(-int16_t(tmpOffsets[0]/float(totSamples)+0.5),
-               -int16_t(tmpOffsets[1]/float(totSamples)+0.5),
-               -int16_t(tmpOffsets[2]/float(totSamples)+0.5));
+    setOffsets(int16_t(tmpOffsets[0]/float(totSamples)+0.5),
+               int16_t(tmpOffsets[1]/float(totSamples)+0.5),
+               int16_t(tmpOffsets[2]/float(totSamples)+0.5));
 }
 
 
@@ -310,9 +319,9 @@ ITG3200::readGyroRaw(int16_t *_GyroXYZ){
 void
 ITG3200::readGyroRawCal(int16_t *_GyroX, int16_t *_GyroY, int16_t *_GyroZ) {
     readGyroRaw(_GyroX, _GyroY, _GyroZ);
-    *_GyroX += offsets[0];
-    *_GyroY += offsets[1];
-    *_GyroZ += offsets[2];
+    *_GyroX -= offsets[0];
+    *_GyroY -= offsets[1];
+    *_GyroZ -= offsets[2];
 }
 
 
