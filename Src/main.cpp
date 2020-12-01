@@ -152,7 +152,7 @@ uint32_t AHRSSamplingFrequency   = 400; // [Hz]
 uint32_t motorSamplingFrequency  = 50;  // [Hz]
 uint32_t sonarSamplingFrequency  = 5;   // [Hz]
 
-uint32_t AHRSSamplingPulses  = uint32_t(periodicClockFrequency/AHRSSamplingFrequency +0.5);  // [Hz]
+uint32_t AHRSSamplingPulses  = uint32_t(periodicClockFrequency/AHRSSamplingFrequency +0.5); // [Hz]
 uint32_t motorSamplingPulses = uint32_t(periodicClockFrequency/motorSamplingFrequency+0.5); // [Hz]
 uint32_t sonarSamplingPulses = uint32_t(periodicClockFrequency/sonarSamplingFrequency+0.5); // [Hz]
 
@@ -192,7 +192,6 @@ double v[3]; // Speed
 static void Init();
 static void Loop();
 static bool AHRS_Init();
-static void AHRS_Init_Position();
 static void ExecCommand();
 static void Wait4Connection();
 
@@ -213,7 +212,7 @@ Init() {
 
     LeftEncoderTimerInit();  // Initialize Left Motor Encoder
     RightEncoderTimerInit(); // Initialize Right Motor Encoder
-    pLeftEncoder = new Encoder(&hLeftEncoderTimer);
+    pLeftEncoder  = new Encoder(&hLeftEncoderTimer);
     pRightEncoder = new Encoder(&hRightEncoderTimer);
 
     PwmTimerInit(); // Initialize the Dc Motors
@@ -229,8 +228,6 @@ Init() {
 
     I2C2_Init(); // Initialize the 10DOF Sensor (Wide power input range from 3 to 5 volts)
     bAHRSpresent = AHRS_Init();
-    if(bAHRSpresent) // 10DOF Sensor Position Initialization
-        AHRS_Init_Position();
 
     // Initialize Motor Controllers
     pLeftControlledMotor  = new ControlledMotor(pLeftMotor,  pLeftEncoder,  motorSamplingFrequency);
@@ -391,12 +388,6 @@ AHRS_Init() {
 // Set the measurement mode to Continuous
     if(Magn.SetMeasurementMode(Measurement_Continuous) != 0)
         return false;
-    return true;
-}
-
-
-void
-AHRS_Init_Position() {
     Madgwick.begin(float(AHRSSamplingFrequency));
 // Get the first Sensor data
     while(!Acc.getInterruptSource(7)) {}
@@ -411,6 +402,7 @@ AHRS_Init_Position() {
                         AHRSvalues[0], AHRSvalues[1], AHRSvalues[2], // Acc
                         AHRSvalues[6], AHRSvalues[7], AHRSvalues[8]);// Mag
     }
+    return true;
 }
 
 
