@@ -22,8 +22,8 @@
 void
 Error_Handler(void) {
     while(true) {
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-        HAL_Delay(50);
+        HAL_GPIO_TogglePin(Alarm_GPIO_Port, Alarm_GPIO_Pin);
+        HAL_Delay(500);
     }
 }
 
@@ -69,6 +69,10 @@ GPIO_Init(void) {
     // Right Motor IN4
     GPIO_InitStruct.Pin   = LMOTOR_IN4;
     HAL_GPIO_Init(RM_IN4_PORT, &GPIO_InitStruct);
+
+    // Alarm Pin
+    GPIO_InitStruct.Pin   = Alarm_GPIO_Pin;
+    HAL_GPIO_Init(Alarm_GPIO_Port, &GPIO_InitStruct);
 }
 
 
