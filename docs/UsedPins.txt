@@ -1,6 +1,6 @@
 // PC10 (CN7   1)    ------> LM298 IN3 (R Motor Direction)
 // PC11 (CN7   2)    ------> LM298 IN4 (R Motor Direction)
-// PA14 (CN7  16)    ------> +3.3V     (10DOF Sensor)
+// PA14 (CN7  16)    ------> +3.3V     (10DOF Sensor, L+R Motor Encoders +Vcc)
 // PA15 (CN7  17)    ------> +5V       (Sonar Vcc)
 // gnd  (CN7  19)    ------> GND       (Sonar GND)
 // GND  (CN7  20)    ------> GND       (10DOF Sensor)
@@ -11,6 +11,7 @@
 
 // PC9  (CN10  1)    ------> LM298 IN2 (L Motor Direction)
 // PC8  (CN10  2)    ------> LM298 IN1 (L Motor Direction)
+// PA5  (CN10  9)    ------> GND       (L+R Motor Encoders GND)
 // PA5  (CN10 11)    ------> Led On Board
 // PA6  (CN10 13)    ------> LM298 ENA (L Motor PWM)
 // PA7  (CN10 15)    ------> LM298_ENB (R Motor PWM)
