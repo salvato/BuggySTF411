@@ -520,6 +520,8 @@ HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
             htim->Instance->CCR3 += sonarSamplingPulses;
             // Enable counter.
             // The counter will stop automatically at the next update event (UEV).
+            uhCaptureIndex = 0;
+            LL_TIM_IC_SetPolarity(TIM5, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
             LL_TIM_EnableCounter(hSonarPulseTimer.Instance);
             if(bOldConnectionStatus != bNewConnectionStatus)
                 bConnected = false;
@@ -555,8 +557,8 @@ HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
         if(uwIC2Value2 >= uwIC2Value1) {
             uwDiffCapture = (uwIC2Value2 - uwIC2Value1);
         }
-        else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFF is max TIM5_CCRx value
-            uwDiffCapture = ((0xFFFF - uwIC2Value1) + uwIC2Value2) + 1;
+        else if(uwIC2Value2 < uwIC2Value1) { // 0xFFFFFFFF is max TIM5_CCRx value
+            uwDiffCapture = ((0xFFFFFFFF - uwIC2Value1) + uwIC2Value2) + 1;
         }
         uhCaptureIndex = 0;
         bSendDistance = true;
