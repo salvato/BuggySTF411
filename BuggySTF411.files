@@ -1038,5 +1038,6 @@ docs/L298N Motor Driver.pdf
 docs/L298N_Datasheet.pdf
 docs/NUCLEO-F411RE_User_manual.pdf
 docs/STM32 cross-series timer overview.pdf
+docs/UsedPins.txt
 docs/stm32f411re.pdf
 startup_stm32f411xe.s
