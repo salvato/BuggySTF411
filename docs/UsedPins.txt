@@ -6,11 +6,11 @@
 // GND  (CN7  20)    ------> GND       (10DOF Sensor)
 // PB7  (CN7  21)    ------> TIM4_CH2  (R Motor Encoder)
 // PC13 (CN7  23)    ------> Button On Board
-// PA0  (CN7  28)    ------> Sonar     (Sonar Pulse Out)
 // PA1  (CN7  30)    ------> Sonar     (Sonar Echo In)
 
 // PC9  (CN10  1)    ------> LM298 IN2 (L Motor Direction)
 // PC8  (CN10  2)    ------> LM298 IN1 (L Motor Direction)
+// PB8  (CN10  3)    ------> Sonar     (Sonar Pulse Out)
 // PA5  (CN10  9)    ------> GND       (L+R Motor Encoders GND)
 // PA5  (CN10 11)    ------> Led On Board
 // PA6  (CN10 13)    ------> LM298 ENA (L Motor PWM)
