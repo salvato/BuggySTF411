@@ -284,6 +284,8 @@ Wait4Connection() {
         if(bRxComplete) {
             bRxComplete = false;
             ExecCommand();
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+                Error_Handler();
         }
         if(bTxUartReady) {
             bTxUartReady = false;
@@ -314,6 +316,8 @@ Loop() {
         if(bRxComplete) { // A complete command has been received
             ExecCommand();
             bRxComplete = false;
+            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+                Error_Handler();
         }
 
         // Transmit new Data only if the previous ones were sent
@@ -589,11 +593,9 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
         }
         command[i] = 0;
         rxBufferEnd++;
-        rxBufferEnd= rxBufferEnd % rxBufferSize;
+        rxBufferEnd = rxBufferEnd % rxBufferSize;
         rxBufferStart = rxBufferEnd;
         bRxComplete = true;
-        if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-            Error_Handler();
     }
     else {
         rxBuffer[rxBufferEnd++] = inChar;
