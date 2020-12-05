@@ -120,7 +120,7 @@ TIM_HandleTypeDef  hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
 
 I2C_HandleTypeDef  hi2c2;
 
-unsigned int baudRate = 115200;
+unsigned int baudRate = 9600;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef  hdma_usart2_tx;
 DMA_HandleTypeDef  hdma_usart2_rx;
@@ -281,16 +281,9 @@ Wait4Connection() {
     strcpy((char *)txBuffer, "Buggy Ready\n");
     bConnected = false;
     while(!bConnected) {
-        if(bRxUartReady) {
-            bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-                Error_Handler();
-        }
         if(bRxComplete) {
             bRxComplete = false;
             ExecCommand();
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-                Error_Handler();
         }
         if(bTxUartReady) {
             bTxUartReady = false;
@@ -316,6 +309,11 @@ Loop() {
             if(pRightControlledMotor)
                 pRightControlledMotor->Stop();
             Wait4Connection(); // Blocking Call...
+        }
+
+        if(bRxComplete) { // A complete command has been received
+            ExecCommand();
+            bRxComplete = false;
         }
 
         // Transmit new Data only if the previous ones were sent
@@ -352,20 +350,6 @@ Loop() {
                     Error_Handler();
             }
         } // if(bTxUartReady)
-
-        if(bRxUartReady) { // Ready to get next char
-            bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-                Error_Handler();
-        }
-
-        if(bRxComplete) { // A complete command has been received
-            bRxComplete = false;
-            ExecCommand();
-            bRxUartReady = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-                Error_Handler();
-        }
 
     } // while(true)
 } // Loop()
@@ -598,18 +582,24 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
     if(inChar == '\n') {
         int i = 0;
         int index = rxBufferStart;
-        while((index % rxBufferSize) != rxBufferEnd)
-            command[i++] = rxBuffer[index++];
+        while(index != rxBufferEnd) {
+            command[i++] = rxBuffer[index];
+            index++;
+            index = index % rxBufferSize;
+        }
         command[i] = 0;
         rxBufferEnd++;
+        rxBufferEnd= rxBufferEnd % rxBufferSize;
         rxBufferStart = rxBufferEnd;
         bRxComplete = true;
+        if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+            Error_Handler();
     }
     else {
-        rxBuffer[rxBufferEnd] = inChar;
-        rxBufferEnd++;
+        rxBuffer[rxBufferEnd++] = inChar;
         rxBufferEnd = rxBufferEnd % rxBufferSize;
-        bRxUartReady = true;
+        if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+            Error_Handler();
     }
 }
 
