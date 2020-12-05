@@ -45,7 +45,7 @@ DcMotor::stop() {
     HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
     if(channel == TIM_CHANNEL_1)
         htimPWM->Instance->CCR1 = 0;
-    else
+    else // (channel == TIM_CHANNEL_2)
         htimPWM->Instance->CCR2 = 0;
 
      HAL_TIM_PWM_Stop(htimPWM, channel);
@@ -58,14 +58,14 @@ DcMotor::setSpeed(int speed) {
         HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_SET);
         HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_RESET);
     }
-    else if(speed < 0) {
+    else { // (speed < 0)
         HAL_GPIO_WritePin(forwardPort, forwardPin, GPIO_PIN_RESET);
         HAL_GPIO_WritePin(reversePort, reversePin, GPIO_PIN_SET);
         speed = -speed;
     }
     if(channel == TIM_CHANNEL_1)
         htimPWM->Instance->CCR1 = speed;
-    else
+    else // (channel == TIM_CHANNEL_2)
         htimPWM->Instance->CCR2 = speed;
 
     HAL_TIM_PWM_Start(htimPWM, channel);

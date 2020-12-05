@@ -120,18 +120,18 @@ TIM_HandleTypeDef  hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
 
 I2C_HandleTypeDef  hi2c2;
 
-unsigned int baudRate = 9600;
+unsigned int baudRate = 115200;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef  hdma_usart2_tx;
 DMA_HandleTypeDef  hdma_usart2_rx;
 
 
 double periodicClockFrequency = 10.0e6;  // 10MHz
-double pwmClockFrequency      = 1.0e6;   // 1MHz
+double pwmClockFrequency      = 10.0e3;  // 10KHz
 double sonarClockFrequency    = 10.0e6;  // 10MHz (100ns period)
 double sonarPulseDelay        = 10.0e-6; // in seconds
 double sonarPulseWidth        = 10.0e-6; // in seconds
-double soundSpeed             = 340.0;   // m/s
+double soundSpeed             = 340.0;   // in m/s
 
 
 //==================
