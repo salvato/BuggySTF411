@@ -21,7 +21,7 @@ extern "C" {
 #define RM_IN3_PORT      GPIOC
 #define RM_IN4_PORT      GPIOC
 
-void Error_Handler(void);
+void Error_Handler(int error=0);
 void SystemClock_Config(void);
 void GPIO_Init(void);
 

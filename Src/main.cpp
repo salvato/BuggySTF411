@@ -120,14 +120,14 @@ TIM_HandleTypeDef  hSonarPulseTimer;   // To Generate the Radar Trigger Pulse
 
 I2C_HandleTypeDef  hi2c2;
 
-unsigned int baudRate = 9600;
+unsigned int baudRate = 38400;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef  hdma_usart2_tx;
 DMA_HandleTypeDef  hdma_usart2_rx;
 
 
 double periodicClockFrequency = 10.0e6;  // 10MHz
-double pwmClockFrequency      = 10.0e3;  // 10KHz
+double pwmClockFrequency      = 20.0e3;  // 10KHz
 double sonarClockFrequency    = 10.0e6;  // 10MHz (100ns period)
 double sonarPulseDelay        = 10.0e-6; // in seconds
 double sonarPulseWidth        = 10.0e-6; // in seconds
@@ -215,7 +215,7 @@ Init() {
     HAL_Init();           // Initialize the HAL Library
     SystemClock_Config(); // Initialize System Clock
     GPIO_Init();          // Initialize On Board Peripherals
-    SerialPortInit();    // Initialize the Serial Communication Port (/dev/ttyACM0)
+    SerialPortInit();     // Initialize the Serial Communication Port (/dev/ttyACM0)
 
     LeftEncoderTimerInit();  // Initialize Left Motor Encoder
     RightEncoderTimerInit(); // Initialize Right Motor Encoder
@@ -275,8 +275,11 @@ Wait4Connection() {
     while(HAL_UART_Receive(&huart2, &inChar, 1, 100) == HAL_OK) ;
 
     // Then prepare to receive commands
-    if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+    HAL_StatusTypeDef uartStatus;
+    uartStatus = HAL_UART_Receive_DMA(&huart2, &inChar, 1);
+    if(uartStatus == HAL_ERROR)
         Error_Handler();
+    bRxUartReady = uartStatus == HAL_OK;
 
     strcpy((char *)txBuffer, "Buggy Ready\n");
     bConnected = false;
@@ -284,13 +287,18 @@ Wait4Connection() {
         if(bRxComplete) {
             bRxComplete = false;
             ExecCommand();
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-                Error_Handler();
         }
         if(bTxUartReady) {
-            bTxUartReady = false;
-            if(HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer)) != HAL_OK)
+            uartStatus = HAL_UART_Transmit_DMA(&huart2, txBuffer, strlen((char *)txBuffer));
+            if(uartStatus == HAL_ERROR)
                 Error_Handler();
+            bTxUartReady = uartStatus != HAL_OK;
+        }
+        if(!bRxUartReady) {
+            uartStatus = HAL_UART_Receive_DMA(&huart2, &inChar, 1);
+            if(uartStatus == HAL_ERROR)
+                Error_Handler();
+            bRxUartReady = uartStatus == HAL_OK;
         }
     } //  while(!bConnected)
 }
@@ -302,7 +310,7 @@ Wait4Connection() {
 static void
 Loop() {
     int len;
-    HAL_StatusTypeDef result;
+    HAL_StatusTypeDef uartStatus;
     while(true) {
         // Wait Until Connected With Remote
         if(!bConnected) { // Asyncronously Changed Via Interrupts
@@ -313,11 +321,16 @@ Loop() {
             Wait4Connection(); // Blocking Call...
         }
 
-        if(bRxComplete) { // A complete command has been received
-            ExecCommand();
-            bRxComplete = false;
-            if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
+        if(!bRxUartReady) {
+            uartStatus = HAL_UART_Receive_DMA(&huart2, &inChar, 1);
+            if(uartStatus == HAL_ERROR)
                 Error_Handler();
+            bRxUartReady = uartStatus == HAL_OK;
+        }
+
+        if(bRxComplete) { // A complete command has been received
+            bRxComplete = false;
+            ExecCommand();
         }
 
         // Transmit new Data only if the previous ones were sent
@@ -349,9 +362,10 @@ Loop() {
                 len += sprintf((char *)&txBuffer[len], ",T,%lu\n",
                                static_cast<unsigned long>(HAL_GetTick()));
                 bTxUartReady = false; // Asyncronously Changed Via Interrupts
-                result = HAL_UART_Transmit_DMA(&huart2, txBuffer, len);
-                if(result != HAL_OK)
+                uartStatus = HAL_UART_Transmit_DMA(&huart2, txBuffer, len);
+                if(uartStatus == HAL_ERROR)
                     Error_Handler();
+                bTxUartReady = uartStatus != HAL_OK;
             }
         } // if(bTxUartReady)
 
@@ -582,13 +596,13 @@ HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle) {
 void
 HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
     (void)UartHandle;
+    HAL_StatusTypeDef uartStatus;
     bOldConnectionStatus = bNewConnectionStatus;
     if(inChar == '\n') {
         int i = 0;
         int index = rxBufferStart;
         while(index != rxBufferEnd) {
-            command[i++] = rxBuffer[index];
-            index++;
+            command[i++] = rxBuffer[index++];
             index = index % rxBufferSize;
         }
         command[i] = 0;
@@ -596,13 +610,17 @@ HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle) {
         rxBufferEnd = rxBufferEnd % rxBufferSize;
         rxBufferStart = rxBufferEnd;
         bRxComplete = true;
+        uartStatus = HAL_UART_Receive_DMA(&huart2, &inChar, 1);
+        bRxUartReady = uartStatus == HAL_OK;
     }
     else {
         rxBuffer[rxBufferEnd++] = inChar;
         rxBufferEnd = rxBufferEnd % rxBufferSize;
-        if(HAL_UART_Receive_DMA(&huart2, &inChar, 1) != HAL_OK)
-            Error_Handler();
+        uartStatus = HAL_UART_Receive_DMA(&huart2, &inChar, 1);
+        bRxUartReady = uartStatus == HAL_OK;
     }
+    if(uartStatus == HAL_ERROR)
+        Error_Handler();
 }
 
 

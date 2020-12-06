@@ -20,10 +20,10 @@
 //        Flash Latency(WS)              = 3
 
 void
-Error_Handler(void) {
+Error_Handler(int error) {
     while(true) {
         HAL_GPIO_TogglePin(Alarm_GPIO_Port, Alarm_GPIO_Pin);
-        HAL_Delay(500);
+        HAL_Delay(500+error);
     }
 }
 

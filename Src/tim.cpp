@@ -230,7 +230,7 @@ PwmTimerInit(void) {
     hPwmTimer.Instance = TIM3;
     hPwmTimer.Init.Prescaler         = uhPrescalerValue;
     hPwmTimer.Init.CounterMode       = TIM_COUNTERMODE_UP;
-    hPwmTimer.Init.Period            = 254;
+    hPwmTimer.Init.Period            = 255;
     hPwmTimer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
     hPwmTimer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
     if(HAL_TIM_PWM_Init(&hPwmTimer) != HAL_OK) {
