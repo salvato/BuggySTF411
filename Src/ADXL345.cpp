@@ -24,10 +24,8 @@
 
 extern void Error_Handler(void);
 
-//using namespace std;
-
-
-#define TO_READ (6)  // num of bytes we are going to read each time (two bytes for each axis)
+// num of bytes we are going to read each time (two bytes for each axis)
+#define TO_READ (6)
 
 
 
@@ -37,9 +35,6 @@ ADXL345::ADXL345() {
     pHi2c       = nullptr;
     dev_address = ADXL345_ADDR_ALT_LOW << 1;
 
-    gains[0] = 0.0039; // 3.9mg/LSB (see datasheet)
-    gains[1] = 0.0039;
-    gains[2] = 0.0039;
 }
 
 
@@ -55,8 +50,45 @@ ADXL345::init(int16_t _address, I2C_HandleTypeDef *_pHi2c) {
         return false;
     if(buf != ADXL345_IDENTITY)
         return false;
-    setAxisOffset(0, 0, 0);
+
+    setFullResBit(true);
+    if(!getFullResBit())
+        return false;
+    setRangeSetting(2); // +/- 2g. Possible values are: 2g, 4g, 8g, 16g
+    getRangeSetting(&buf);
+    if(buf !=2)
+        return false;
+    calibrate();
     return true;
+}
+
+
+void
+ADXL345::calibrate() {
+    offsets[0] = 0.0;
+    offsets[1] = 0.0;
+    offsets[2] = 0.0;
+
+    int16_t g[3];
+    getAxisOffset(&g[0], &g[1], &g[2]);
+
+    for(int i=0; i<31; i++) {
+        readAccel(g);
+        for(int j=0; j<3; j++)
+            offsets[j] += g[j];
+    }
+    for(int j=0; j<3; j++)
+        offsets[j] /= 31.0;
+
+    double gm = sqrt(offsets[0]*offsets[0] +
+                     offsets[1]*offsets[1] +
+                     offsets[2]*offsets[2]);
+    gm = 1.0 / gm;
+
+    for(int j=0; j<3; j++) {
+        gains[j] = gm;
+        offsets[j] *= gains[j];
+    }
 }
 
 
@@ -149,7 +181,15 @@ void
 ADXL345::getRangeSetting(byte* rangeSetting) {
     byte _b;
     readFrom(ADXL345_DATA_FORMAT, 1, &_b);
-    *rangeSetting = _b & 0b00000011;
+    _b &= 0b00000011;
+    if(_b == 0)
+        *rangeSetting = 2;
+    else if(_b == 1)
+        *rangeSetting = 4;
+    else if(_b == 2)
+        *rangeSetting = 8;
+    else if(_b == 3)
+        *rangeSetting = 16;
 }
 
 
@@ -237,13 +277,14 @@ ADXL345::getFullResBit() {
 
 
 // Sets the FULL_RES bit
-// if set to 1, the device is in full resolution mode, where the output resolution increases with the
-//   g range set by the range bits to maintain a 4mg/LSB scal factor
-// if set to 0, the device is in 10-bit mode, and the range buts determine the maximum g range
-//   and scale factor
+// If set to true, the device is in full resolution mode,
+// where the output resolution increases with the g range
+// set by the range bits to maintain a 4mg/LSB scale factor.
+// If set to false, the device is in 10-bit mode, and the range
+// bits determine the maximum g range and scale factor
 void
 ADXL345::setFullResBit(bool fullResBit) {
-    setRegisterBit(ADXL345_DATA_FORMAT, 3, fullResBit);
+    setRegisterBit(ADXL345_DATA_FORMAT, 3, fullResBit ? 1 : 0);
 }
 
 
