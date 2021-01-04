@@ -47,6 +47,14 @@ Madgwick::Madgwick() {
 
 
 void
+Madgwick::update(float* g, float* a, float* m) {
+    update(g[0], g[1], g[2],
+           a[0], a[1], a[2],
+           m[0], m[1], m[2]);
+}
+
+
+void
 Madgwick::update(float gx, float gy, float gz,
                  float ax, float ay, float az,
                  float mx, float my, float mz)
@@ -261,6 +269,15 @@ Madgwick::getRotation(float* r0, float* r1, float* r2, float* r3) {
 }
 
 
+void
+Madgwick::getRotation(float* r) {
+    r[0] = q0;
+    r[1] = q1;
+    r[2] = q2;
+    r[3] = q3;
+}
+
+
 //void
 //Madgwick::dmpGetGravity(VectorFloat *v, Quaternion *q) {
 //    v->x = 2 * (q->x * q->z - q->w * q->y);
@@ -278,9 +295,59 @@ Madgwick::getGravity(float *vx, float *vy, float *vz) {
 
 
 void
+Madgwick::getGravity(float *v) {
+    v[0] = 2 * (q1*q3 - q0*q2);
+    v[1] = 2 * (q0*q1 + q2*q3);
+    v[2] = q0*q0 - q1*q1 - q2*q2 + q3*q3;
+}
+
+
+void
 Madgwick::computeAngles() {
     roll  = atan2f(q0*q1 + q2*q3, 0.5f - q1*q1 - q2*q2);
     pitch = asinf(-2.0f * (q1*q3 - q0*q2));
     yaw   = atan2f(q1*q2 + q0*q3, 0.5f - q2*q2 - q3*q3);
     anglesComputed = 1;
+}
+
+
+float
+Madgwick::getRoll() {
+    if (!anglesComputed) computeAngles();
+    return roll * 57.29578f; // 180.0/M_PI
+}
+
+
+float
+Madgwick::getPitch() {
+    if (!anglesComputed) computeAngles();
+    return pitch * 57.29578f;
+}
+
+
+float
+Madgwick::getYaw() {
+    if (!anglesComputed) computeAngles();
+    return yaw * 57.29578f + 180.0f;
+}
+
+
+float
+Madgwick::getRollRadians() {
+    if (!anglesComputed) computeAngles();
+    return roll;
+}
+
+
+float
+Madgwick::getPitchRadians() {
+    if (!anglesComputed) computeAngles();
+    return pitch;
+}
+
+
+float
+Madgwick::getYawRadians() {
+    if (!anglesComputed) computeAngles();
+    return yaw;
 }

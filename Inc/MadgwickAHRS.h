@@ -42,34 +42,22 @@ public:
     Madgwick(void);
     void begin(float sampleFrequency) { invSampleFreq = 1.0f / sampleFrequency; }
     void update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
+    void update(float* g, float* a, float* m);
     void updateIMU(float gx, float gy, float gz, float ax, float ay, float az);
 
-    float getRoll() {
-        if (!anglesComputed) computeAngles();
-        return roll * 57.29578f; // 180.0/M_PI
-    }
-    float getPitch() {
-        if (!anglesComputed) computeAngles();
-        return pitch * 57.29578f;
-    }
-    float getYaw() {
-        if (!anglesComputed) computeAngles();
-        return yaw * 57.29578f + 180.0f;
-    }
-    float getRollRadians() {
-        if (!anglesComputed) computeAngles();
-        return roll;
-    }
-    float getPitchRadians() {
-        if (!anglesComputed) computeAngles();
-        return pitch;
-    }
-    float getYawRadians() {
-        if (!anglesComputed) computeAngles();
-        return yaw;
-    }
+    float getRoll();
+    float getPitch();
+    float getYaw();
+
+    float getRollRadians();
+    float getPitchRadians();
+    float getYawRadians();
+
     void getRotation(float* r0, float* r1, float* r2, float* r3);
+    void getRotation(float* r);
+
     void getGravity(float *vx, float *vy, float *vz);
+    void getGravity(float *v);
 };
 #endif
 
