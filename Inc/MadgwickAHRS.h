@@ -43,6 +43,7 @@ public:
     void begin(float sampleFrequency) { invSampleFreq = 1.0f / sampleFrequency; }
     void update(float gx, float gy, float gz, float ax, float ay, float az, float mx, float my, float mz);
     void update(float* g, float* a, float* m);
+
     void updateIMU(float gx, float gy, float gz, float ax, float ay, float az);
 
     float getRoll();
